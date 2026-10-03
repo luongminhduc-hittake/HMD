@@ -1,0 +1,12 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+ytdownloader
+
+# Output and temp files
+downloads/
+test_dl/
+*.tmp
