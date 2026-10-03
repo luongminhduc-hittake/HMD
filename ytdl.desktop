@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=YouTube Downloader
+Comment=Tải video và âm thanh từ YouTube
+Exec=ytdl
+Icon=video-downloader
+Terminal=true
+Categories=Network;AudioVideo;Video;Audio;
+Keywords=youtube;downloader;video;audio;mp3;mp4;
+StartupNotify=false

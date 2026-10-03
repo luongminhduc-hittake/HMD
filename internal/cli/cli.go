@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"ytdownloader/internal/deps"
@@ -35,7 +36,7 @@ func Run(args []string) int {
 	}
 
 	if *versionFlag || *versionLongFlag {
-		fmt.Printf("ytdl v%s (Windows Edition)\n", AppVersion)
+		fmt.Printf("ytdl v%s (%s/%s)\n", AppVersion, runtime.GOOS, runtime.GOARCH)
 		return 0
 	}
 

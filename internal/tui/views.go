@@ -21,7 +21,7 @@ func (m Model) View() string {
 	// Top Banner
 	b.WriteString(StyleTitle.Render(BannerASCII))
 	b.WriteString("\n")
-	b.WriteString(StyleSubtitle.Render("    ⚡ Modern YouTube Downloader for Windows"))
+	b.WriteString(StyleSubtitle.Render("    ⚡ Modern YouTube Downloader"))
 	b.WriteString("\n\n")
 
 	switch m.State {
