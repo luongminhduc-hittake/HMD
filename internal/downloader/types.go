@@ -49,12 +49,11 @@ var AvailablePresets = []PresetOption{
 
 // MediaInfo contains inspected metadata of the URL.
 type MediaInfo struct {
-	Title         string
-	Duration      string
-	Uploader      string
-	IsPlaylist    bool
-	PlaylistCount int
-	RawURL        string
+	Title      string
+	Duration   string
+	Uploader   string
+	IsPlaylist bool
+	RawURL     string
 }
 
 // ProgressUpdate contains real-time progress information.
@@ -68,9 +67,12 @@ type ProgressUpdate struct {
 
 // DownloadResult contains final results after a download completes.
 type DownloadResult struct {
-	FilePath      string
-	FileName      string
-	FileSize      int64
-	FormattedSize string
-	Title         string
+	FilePath        string
+	FileName        string
+	FileSize        int64
+	FormattedSize   string
+	Title           string
+	IsPlaylist      bool
+	DownloadedCount int
+	SkippedCount    int
 }

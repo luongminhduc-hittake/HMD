@@ -3,23 +3,23 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"ytdownloader/internal/cli"
 	"ytdownloader/internal/tui"
 	"ytdownloader/internal/util"
 )
 
 func main() {
-	// If CLI arguments or flags are supplied, execute headless CLI mode
-	if len(os.Args) > 1 {
-		os.Exit(cli.Run(os.Args[1:]))
+	initialURL := ""
+	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
+		initialURL = os.Args[1]
 	}
 
-	// Interactive TUI mode (Double-click or running `ytdl` without arguments)
+	// Interactive TUI mode
 	p := tea.NewProgram(
-		tui.InitialModel(util.GetDefaultDownloadDir()),
+		tui.InitialModel(util.GetDefaultDownloadDir(), initialURL),
 		tea.WithAltScreen(),
 	)
 

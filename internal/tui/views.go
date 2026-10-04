@@ -38,6 +38,8 @@ func (m Model) View() string {
 		b.WriteString(m.viewCompleted())
 	case StateError:
 		b.WriteString(m.viewError())
+	case StateUpdating:
+		b.WriteString(m.viewUpdating())
 	}
 
 	return b.String()
@@ -61,13 +63,24 @@ func (m Model) viewCheckDeps() string {
 
 func (m Model) viewInputURL() string {
 	var s strings.Builder
+
+	if m.AvailableUpdate != nil {
+		s.WriteString(StyleBadgeWarning.Render("BẢN MỚI") + " " +
+			StyleHighlight.Render(fmt.Sprintf("Có bản cập nhật mới %s! Nhấn 'u' để nâng cấp tự động.", m.AvailableUpdate.TagName)) + "\n\n")
+	}
+
 	s.WriteString(StyleHighlight.Render("Nhập liên kết video hoặc danh sách phát:") + "\n\n")
 	s.WriteString(m.Input.View() + "\n\n")
 
 	if m.OutputDir != "" {
 		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s\n", m.OutputDir)))
 	}
-	s.WriteString(StyleHelp.Render("Phím tắt: Enter (Tiếp tục) • Esc / Ctrl+C (Thoát)"))
+
+	helpText := "Phím tắt: Enter (Tiếp tục) • Esc / Ctrl+C (Thoát)"
+	if m.AvailableUpdate != nil {
+		helpText = "Phím tắt: Enter (Tiếp tục) • u (Cập nhật app) • Esc / Ctrl+C (Thoát)"
+	}
+	s.WriteString(StyleHelp.Render(helpText))
 
 	return StyleCard.Render(s.String())
 }
@@ -178,17 +191,33 @@ func (m Model) viewCompleted() string {
 	s.WriteString(StyleBadgeSuccess.Render("✔ HOÀN TẤT THÀNH CÔNG") + "\n\n")
 
 	if m.Result != nil {
-		if m.Result.Title != "" {
-			s.WriteString(fmt.Sprintf("Tiêu đề:    %s\n", StyleHighlight.Render(m.Result.Title)))
-		}
-		if m.Result.FileName != "" {
-			s.WriteString(fmt.Sprintf("Tên tệp:    %s\n", StyleHighlight.Render(m.Result.FileName)))
-		}
-		if m.Result.FormattedSize != "" {
-			s.WriteString(fmt.Sprintf("Kích thước: %s\n", StyleHighlight.Render(m.Result.FormattedSize)))
-		}
-		if m.Result.FilePath != "" {
-			s.WriteString(fmt.Sprintf("Lưu tại:    %s\n\n", StyleSubtitle.Render(m.Result.FilePath)))
+		if m.Result.IsPlaylist {
+			s.WriteString(fmt.Sprintf("Loại tải:   %s\n", StyleHighlight.Render("Danh sách phát (Playlist)")))
+			if m.Result.Title != "" {
+				s.WriteString(fmt.Sprintf("Tiêu đề:    %s\n", StyleHighlight.Render(m.Result.Title)))
+			}
+			if m.Result.DownloadedCount > 0 {
+				s.WriteString(fmt.Sprintf("Đã tải:     %s\n", StyleHighlight.Render(fmt.Sprintf("%d video thành công", m.Result.DownloadedCount))))
+			}
+			if m.Result.SkippedCount > 0 {
+				s.WriteString(fmt.Sprintf("Bỏ qua:     %s\n", StyleBadgeWarning.Render(fmt.Sprintf("%d video (bị ẩn hoặc không khả dụng)", m.Result.SkippedCount))))
+			}
+			if m.Result.FilePath != "" {
+				s.WriteString(fmt.Sprintf("Thư mục:    %s\n\n", StyleSubtitle.Render(m.Result.FilePath)))
+			}
+		} else {
+			if m.Result.Title != "" {
+				s.WriteString(fmt.Sprintf("Tiêu đề:    %s\n", StyleHighlight.Render(m.Result.Title)))
+			}
+			if m.Result.FileName != "" {
+				s.WriteString(fmt.Sprintf("Tên tệp:    %s\n", StyleHighlight.Render(m.Result.FileName)))
+			}
+			if m.Result.FormattedSize != "" {
+				s.WriteString(fmt.Sprintf("Kích thước: %s\n", StyleHighlight.Render(m.Result.FormattedSize)))
+			}
+			if m.Result.FilePath != "" {
+				s.WriteString(fmt.Sprintf("Lưu tại:    %s\n\n", StyleSubtitle.Render(m.Result.FilePath)))
+			}
 		}
 	}
 
@@ -230,4 +259,31 @@ func (m Model) viewError() string {
 
 	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓ hoặc 1/2 để chọn • Enter: Thực hiện"))
 	return StyleErrorCard.Render(s.String())
+}
+
+func (m Model) viewUpdating() string {
+	var s strings.Builder
+	s.WriteString(StyleBadgeInfo.Render("CẬP NHẬT") + " " + StyleHighlight.Render("Tự động nâng cấp phiên bản mới") + "\n\n")
+
+	if m.UpdateSuccess {
+		s.WriteString(StyleBadgeSuccess.Render("✔ CẬP NHẬT THÀNH CÔNG!") + "\n\n")
+		s.WriteString("Ứng dụng đã được nâng cấp lên phiên bản mới nhất thành công.\n\n")
+		s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để thoát. Vui lòng mở lại ytdl để sử dụng."))
+		return StyleSuccessCard.Render(s.String())
+	}
+
+	if m.UpdateError != nil {
+		s.WriteString(StyleBadgeError.Render("✖ CẬP NHẬT THẤT BẠI") + "\n\n")
+		s.WriteString(m.UpdateError.Error() + "\n\n")
+		s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để quay lại màn hình chính."))
+		return StyleErrorCard.Render(s.String())
+	}
+
+	s.WriteString(m.Spinner.View() + " " + m.UpdateStatus + "\n\n")
+	if m.UpdateProgress > 0 {
+		s.WriteString(m.ProgressModel.ViewAs(m.UpdateProgress / 100.0) + "\n\n")
+	}
+	s.WriteString(StyleHelp.Render("Đang cài đặt trực tiếp vào hệ thống... Vui lòng chờ."))
+
+	return StyleCard.Render(s.String())
 }

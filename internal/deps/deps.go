@@ -130,21 +130,6 @@ func EnsureDependencies(cb ProgressCallback) (BinaryPaths, error) {
 	return paths, nil
 }
 
-// UpdateYtDlp runs yt-dlp -U to ensure it is at the latest version.
-func UpdateYtDlp() (string, error) {
-	paths, _ := FindBinaries()
-	if paths.YtDlp == "" {
-		return "", fmt.Errorf("chưa tìm thấy yt-dlp để cập nhật")
-	}
-
-	cmd := exec.Command(paths.YtDlp, "-U")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return string(out), fmt.Errorf("cập nhật thất bại: %w\n%s", err, string(out))
-	}
-	return string(out), nil
-}
-
 func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
@@ -217,7 +202,7 @@ func extractFFmpegFromZip(zipPath, targetDir string) error {
 
 	for _, f := range r.File {
 		cleanName := filepath.Base(f.Name)
-		if strings.EqualFold(cleanName, "ffmpeg.exe") || strings.EqualFold(cleanName, "ffprobe.exe") {
+		if strings.EqualFold(cleanName, "ffmpeg.exe") {
 			rc, err := f.Open()
 			if err != nil {
 				return err

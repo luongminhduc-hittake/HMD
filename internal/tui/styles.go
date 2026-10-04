@@ -5,7 +5,6 @@ import "github.com/charmbracelet/lipgloss"
 var (
 	// Nord & Cyber Palette
 	ColorNordPolarDark   = lipgloss.Color("#2E3440")
-	ColorNordPolarLight  = lipgloss.Color("#434C5E")
 	ColorNordSnow        = lipgloss.Color("#ECEFF4")
 	ColorNordSnowMuted   = lipgloss.Color("#D8DEE9")
 	ColorNordFrostCyan   = lipgloss.Color("#88C0D0")
@@ -14,7 +13,6 @@ var (
 	ColorNordAuroraGreen = lipgloss.Color("#A3BE8C")
 	ColorNordAuroraRed   = lipgloss.Color("#BF616A")
 	ColorNordAuroraGold  = lipgloss.Color("#EBCB8B")
-	ColorNordAuroraPink  = lipgloss.Color("#B48EAD")
 	ColorMuted           = lipgloss.Color("#616E88")
 
 	// Component Styles
@@ -56,6 +54,12 @@ var (
 			Bold(true).
 			Foreground(ColorNordPolarDark).
 			Background(ColorNordFrostCyan).
+			Padding(0, 1)
+
+	StyleBadgeWarning = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(ColorNordPolarDark).
+			Background(ColorNordAuroraGold).
 			Padding(0, 1)
 
 	StyleSelected = lipgloss.NewStyle().

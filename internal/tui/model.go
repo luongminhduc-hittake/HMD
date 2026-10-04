@@ -10,6 +10,7 @@ import (
 
 	"ytdownloader/internal/deps"
 	"ytdownloader/internal/downloader"
+	"ytdownloader/internal/updater"
 )
 
 // SessionState tracks the current view.
@@ -24,6 +25,7 @@ const (
 	StateDownloading
 	StateCompleted
 	StateError
+	StateUpdating
 )
 
 // Model represents the overall TUI application state.
@@ -65,12 +67,22 @@ type Model struct {
 	Result       *downloader.DownloadResult
 	ActionIndex  int // for completed/error screen actions
 	ErrorMessage string
+
+	// Self-update state
+	AvailableUpdate *updater.ReleaseInfo
+	UpdateStatus    string
+	UpdateProgress  float64
+	UpdateError     error
+	UpdateSuccess   bool
 }
 
 // InitialModel constructs the default model state.
-func InitialModel(customOutputDir string) Model {
+func InitialModel(customOutputDir, initialURL string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Dán đường dẫn YouTube tại đây (Ctrl+V hoặc chuột phải)..."
+	if initialURL != "" {
+		ti.SetValue(initialURL)
+	}
 	ti.Focus()
 	ti.CharLimit = 512
 	ti.Width = 60

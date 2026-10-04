@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -9,6 +10,7 @@ import (
 
 	"ytdownloader/internal/deps"
 	"ytdownloader/internal/downloader"
+	"ytdownloader/internal/updater"
 	"ytdownloader/internal/util"
 )
 
@@ -43,11 +45,46 @@ type msgDownloadCompleted struct {
 	err    error
 }
 
+type msgUpdateCheckResult struct {
+	info *updater.ReleaseInfo
+	err  error
+}
+
+type msgUpdateProgress struct {
+	downloaded int64
+	total      int64
+	percent    float64
+}
+
+type msgUpdateFinished struct {
+	err error
+}
+
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.Spinner.Tick,
 		initDepsCmd(),
+		checkUpdateCmd(),
 	)
+}
+
+func checkUpdateCmd() tea.Cmd {
+	return func() tea.Msg {
+		info, err := updater.CheckForUpdate()
+		return msgUpdateCheckResult{info: info, err: err}
+	}
+}
+
+func startSelfUpdateCmd(assetURL string) (tea.Cmd, chan tea.Msg) {
+	ch := make(chan tea.Msg, 50)
+	go func() {
+		err := updater.ApplyUpdate(assetURL, func(dl, total int64, pct float64) {
+			ch <- msgUpdateProgress{downloaded: dl, total: total, percent: pct}
+		})
+		ch <- msgUpdateFinished{err: err}
+		close(ch)
+	}()
+	return waitForChannel(ch), ch
 }
 
 func initDepsCmd() tea.Cmd {
@@ -201,6 +238,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = StateCompleted
 		m.ActionIndex = 0
 		return m, nil
+
+	case msgUpdateCheckResult:
+		if msg.err == nil && msg.info != nil {
+			m.AvailableUpdate = msg.info
+		}
+		return m, nil
+
+	case msgUpdateProgress:
+		m.UpdateProgress = msg.percent
+		if msg.total > 0 {
+			m.UpdateStatus = fmt.Sprintf("Đang tải bản cập nhật: %.1f%% (%d/%d MB)...", msg.percent, msg.downloaded/(1024*1024), msg.total/(1024*1024))
+		}
+		cmds = append(cmds, waitForChannel(m.ProgressChan))
+
+	case msgUpdateFinished:
+		if msg.err != nil {
+			m.UpdateError = msg.err
+		} else {
+			m.UpdateSuccess = true
+		}
+		return m, nil
 	}
 
 	// State-specific interactions
@@ -224,6 +282,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StateError:
 		m, cmd = m.updateError(msg)
 		cmds = append(cmds, cmd)
+
+	case StateUpdating:
+		m, cmd = m.updateSelfUpdating(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -233,6 +295,17 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "u", "U":
+			if m.AvailableUpdate != nil {
+				m.State = StateUpdating
+				m.UpdateStatus = fmt.Sprintf("Đang chuẩn bị tải bản cập nhật %s...", m.AvailableUpdate.TagName)
+				m.UpdateProgress = 0
+				m.UpdateError = nil
+				m.UpdateSuccess = false
+				var upCmd tea.Cmd
+				upCmd, m.ProgressChan = startSelfUpdateCmd(m.AvailableUpdate.DownloadURL)
+				return m, upCmd
+			}
 		case "enter":
 			val := m.Input.Value()
 			if val == "" {
@@ -391,6 +464,24 @@ func (m Model) updateError(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		case "esc":
 			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateSelfUpdating(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter", "esc", "q":
+			if m.UpdateSuccess {
+				return m, tea.Quit
+			}
+			if m.UpdateError != nil {
+				m.State = StateInputURL
+				m.Input.Focus()
+				return m, nil
+			}
 		}
 	}
 	return m, nil

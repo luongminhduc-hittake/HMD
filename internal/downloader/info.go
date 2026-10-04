@@ -18,22 +18,42 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 
 	// Check if URL indicates a playlist
 	isPlaylist := false
+	isPurePlaylist := false
 	if u, err := url.Parse(rawURL); err == nil {
 		q := u.Query()
 		if q.Get("list") != "" || strings.Contains(u.Path, "playlist") {
 			isPlaylist = true
+			if q.Get("v") == "" {
+				isPurePlaylist = true
+			}
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, ytdlpPath,
-		"--simulate",
-		"--no-warnings",
-		"--no-playlist",
-		"--print", "title:%(title)s",
-		"--print", "duration_string:%(duration_string)s",
-		"--print", "uploader:%(uploader)s",
-		rawURL,
-	)
+	var args []string
+	if isPurePlaylist {
+		args = []string{
+			"--flat-playlist",
+			"--no-warnings",
+			"--ignore-errors",
+			"--playlist-items", "1",
+			"--print", "title:%(playlist_title|title)s",
+			"--print", "uploader:%(uploader|channel)s",
+			rawURL,
+		}
+	} else {
+		args = []string{
+			"--simulate",
+			"--no-warnings",
+			"--ignore-errors",
+			"--no-playlist",
+			"--print", "title:%(title)s",
+			"--print", "duration_string:%(duration_string)s",
+			"--print", "uploader:%(uploader)s",
+			rawURL,
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, ytdlpPath, args...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -54,6 +74,10 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 		Title:      "YouTube Video",
 		Duration:   "N/A",
 		Uploader:   "YouTube",
+	}
+	if isPurePlaylist {
+		info.Duration = "Playlist"
+		info.Title = "YouTube Playlist"
 	}
 
 	scanner := bufio.NewScanner(&stdout)

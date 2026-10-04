@@ -9,18 +9,17 @@
 - **Chỉ 1 file thực thi duy nhất**:
   - Windows: `ytdl.exe` (~7.4 MB).
   - Linux: `ytdl` (~7.1 MB).
+- **Tự động Cập nhật (Self-Update)**: Tự động kiểm tra phiên bản mới từ GitHub Releases khi khởi động; người dùng chỉ cần nhấn `u` trên giao diện để tự động nâng cấp file thực thi.
+- **Tải Playlist thông minh**: Tự động bỏ qua các video bị ẩn, private hoặc không khả dụng trong danh sách phát mà không làm gián đoạn tiến trình tải.
 - **Tự động quản lý công cụ (`yt-dlp` & `ffmpeg`)**: Nếu hệ thống chưa có, ứng dụng sẽ tự động tải các bản portable chính thức vào `%LOCALAPPDATA%\ytdl\bin` (Windows) hoặc `~/.local/share/ytdl/bin` (Linux) với thanh tiến trình trực quan trong lần chạy đầu tiên.
 - **Tích hợp Linux Desktop Entry (`.desktop`)**: Tự động hiển thị trên menu ứng dụng (Rofi, Wofi, GNOME, KDE, Omarchy, ...) với icon hệ thống và cờ `Terminal=true`.
-- **Chế độ kép (Hybrid Mode)**:
-  - **Mở từ menu / Double-click / Chạy không cờ**: Mở giao diện tương tác TUI (Bubble Tea & Lipgloss) hiện đại.
-  - **Dòng lệnh (CLI Flags)**: Hỗ trợ chạy script tự động nhanh gọn.
+- **Giao diện TUI hiện đại**: Xây dựng trên Bubble Tea & Lipgloss, trực quan, hỗ trợ phím tắt và chuột.
 - **Hỗ trợ 5 Preset tối ưu**:
   - 🎥 **Best Video (MP4)**: Tự động gộp video độ phân giải cao nhất (4K/2K/1080p) + audio tốt nhất.
   - 📺 **Full HD 1080p (MP4)**
   - 💻 **HD 720p (MP4)**
   - 🎵 **Audio MP3 (320kbps)**: Tự động trích xuất, nhúng ảnh bìa (thumbnail) và ID3 metadata.
   - ⚡ **Audio M4A gốc (AAC)**: Tải trực tiếp không cần chuyển mã, siêu tốc.
-- **Tự động phát hiện Playlist**: Cho phép chọn tải video đơn lẻ hay toàn bộ danh sách phát.
 - **Menu hành động sau khi tải**: Hiển thị thông số file, hỗ trợ bấm mở nhanh thư mục lưu bằng File Manager.
 
 ---
@@ -43,13 +42,7 @@ Lệnh trên sẽ:
 
 ### 3. Khởi chạy
 - **Từ Menu ứng dụng**: Tìm `YouTube Downloader` hoặc `ytdl` trong App Launcher / Rofi.
-- **Từ Terminal (TUI)**: Gõ `ytdl`.
-- **Từ Dòng lệnh (CLI)**:
-  ```bash
-  ytdl "https://www.youtube.com/watch?v=..."
-  ytdl -f mp3 "https://www.youtube.com/watch?v=..."
-  ytdl -f 1080p -o ~/Videos "https://www.youtube.com/watch?v=..."
-  ```
+- **Từ Terminal (TUI)**: Gõ `ytdl` (hoặc `ytdl "<link>"` để dán sẵn link).
 
 ---
 
@@ -57,10 +50,7 @@ Lệnh trên sẽ:
 
 1. Tải hoặc copy file **`ytdl.exe`** vào máy.
 2. Nhấp đúp chuột để mở giao diện tương tác (TUI), dán link và chọn định dạng tải.
-3. Hoặc mở qua CMD / PowerShell:
-   ```cmd
-   ytdl.exe -f mp3 "https://www.youtube.com/watch?v=..."
-   ```
+3. Khi có bản cập nhật mới, giao diện sẽ hiện thông báo; chỉ cần nhấn phím `u` để app tự nâng cấp.
 
 ---
 

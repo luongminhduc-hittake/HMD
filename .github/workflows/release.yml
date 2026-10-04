@@ -1,0 +1,46 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Build Linux Binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ytdl-linux-amd64 .
+
+      - name: Build Windows Binary
+        run: |
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ytdl-windows-amd64.exe .
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.0
+          name: "ytdl v1.1.0"
+          body: |
+            Phiên bản phát hành tự động cho commit ${{ github.sha }}
+            - Bỏ qua video bị ẩn / không khả dụng khi tải playlist.
+            - Tự động kiểm tra và cập nhật phiên bản mới trực tiếp trong giao diện TUI.
+          draft: false
+          prerelease: false
+          files: |
+            ytdl-linux-amd64
+            ytdl-windows-amd64.exe

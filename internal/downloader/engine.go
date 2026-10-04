@@ -26,7 +26,10 @@ type DownloadOptions struct {
 	OnStatus         func(string)
 }
 
-var fallbackRegex = regexp.MustCompile(`\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+~?(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)`)
+var (
+	playlistItemRegex = regexp.MustCompile(`\[download\]\s+Downloading\s+item\s+(\d+)\s+of\s+(\d+)`)
+	errorItemRegex    = regexp.MustCompile(`ERROR:\s*\[[^\]]+\]\s*([^:\s]+):`)
+)
 
 // ExecuteDownload initiates yt-dlp with appropriate flags and streams progress updates.
 func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult, error) {
@@ -51,7 +54,12 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 	}
 
 	if opts.DownloadPlaylist {
-		args = append(args, "--yes-playlist")
+		args = append(args,
+			"--yes-playlist",
+			"--ignore-errors",
+			"--no-abort-on-error",
+			"--skip-playlist-after-errors", "infinite",
+		)
 	} else {
 		args = append(args, "--no-playlist")
 	}
@@ -114,6 +122,9 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 	var finalFilePath string
 	var lastStatus string
 	var lastPercent float64
+	downloadedFiles := make(map[string]bool)
+	skippedVideos := make(map[string]bool)
+	rawSkippedCount := 0
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -123,19 +134,37 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 
 		if strings.HasPrefix(line, "FINAL_PATH:") {
 			finalFilePath = strings.TrimPrefix(line, "FINAL_PATH:")
+			downloadedFiles[finalFilePath] = true
 			continue
 		}
 
 		if strings.HasPrefix(line, "[download] Destination: ") {
 			finalFilePath = strings.TrimSpace(strings.TrimPrefix(line, "[download] Destination: "))
+			downloadedFiles[finalFilePath] = true
 		} else if strings.Contains(line, " has already been downloaded") && strings.HasPrefix(line, "[download] ") {
 			f := strings.TrimPrefix(line, "[download] ")
 			f = strings.TrimSuffix(f, " has already been downloaded")
 			finalFilePath = strings.TrimSpace(f)
+			downloadedFiles[finalFilePath] = true
 		} else if strings.HasPrefix(line, "[Merger] Merging formats into \"") {
 			f := strings.TrimPrefix(line, "[Merger] Merging formats into \"")
 			f = strings.TrimSuffix(f, "\"")
 			finalFilePath = strings.TrimSpace(f)
+			downloadedFiles[finalFilePath] = true
+		}
+
+		if pMatches := playlistItemRegex.FindStringSubmatch(line); len(pMatches) == 3 {
+			if opts.OnStatus != nil {
+				opts.OnStatus(fmt.Sprintf("Đang xử lý video %s/%s trong danh sách...", pMatches[1], pMatches[2]))
+			}
+		}
+
+		if strings.Contains(line, "ERROR:") || strings.Contains(line, "Skipping item") || strings.Contains(line, "is unavailable") || strings.Contains(line, "Private video") {
+			if eMatches := errorItemRegex.FindStringSubmatch(line); len(eMatches) == 2 {
+				skippedVideos[eMatches[1]] = true
+			} else if strings.Contains(line, "ERROR:") {
+				rawSkippedCount++
+			}
 		}
 
 		if strings.HasPrefix(line, "DOWNLOAD_PROGRESS:") {
@@ -173,30 +202,6 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 			continue
 		}
 
-		// Fallback regex matching
-		if matches := fallbackRegex.FindStringSubmatch(line); len(matches) == 5 {
-			pct, _ := strconv.ParseFloat(matches[1], 64)
-			lastPercent = pct
-			eta := matches[4]
-			if eta == "Unknown" || eta == "NA" {
-				eta = ""
-			}
-			speed := matches[3]
-			if speed == "Unknown B/s" || speed == "NA" {
-				speed = ""
-			}
-			if opts.OnProgress != nil {
-				opts.OnProgress(ProgressUpdate{
-					Percent:       lastPercent,
-					TotalSize:     matches[2],
-					Speed:         speed,
-					ETA:           eta,
-					StatusMessage: "Đang tải dữ liệu...",
-				})
-			}
-			continue
-		}
-
 		// Check postprocessing stages
 		statusMsg := ""
 		switch {
@@ -220,15 +225,32 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		}
 	}
 
-	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("lỗi trong quá trình tải xuống: %w", err)
+	waitErr := cmd.Wait()
+	downloadedCount := len(downloadedFiles)
+	skippedCount := len(skippedVideos)
+	if skippedCount == 0 && rawSkippedCount > 0 {
+		skippedCount = rawSkippedCount
+	}
+
+	if waitErr != nil {
+		if opts.DownloadPlaylist && downloadedCount > 0 {
+			// Playlist completed with some videos downloaded; ignore non-zero exit caused by skipped items
+		} else {
+			return nil, fmt.Errorf("lỗi trong quá trình tải xuống: %w", waitErr)
+		}
 	}
 
 	res := &DownloadResult{
-		FilePath: finalFilePath,
+		FilePath:        finalFilePath,
+		IsPlaylist:      opts.DownloadPlaylist,
+		DownloadedCount: downloadedCount,
+		SkippedCount:    skippedCount,
 	}
 
-	if finalFilePath != "" {
+	if opts.DownloadPlaylist {
+		res.FilePath = opts.OutputDir
+		res.FileName = filepath.Base(opts.OutputDir)
+	} else if finalFilePath != "" {
 		res.FileName = filepath.Base(finalFilePath)
 		if fi, err := os.Stat(finalFilePath); err == nil {
 			res.FileSize = fi.Size()
