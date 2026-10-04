@@ -8,20 +8,17 @@ import (
 )
 
 const BannerASCII = `
-  ██╗   ██╗████████╗██████╗ ██╗
-  ╚██╗ ██╔╝╚══██╔══╝██╔══██╗██║
-   ╚████╔╝    ██║   ██║  ██║██║
-    ╚██╔╝     ██║   ██║  ██║██║
-     ██║      ██║   ██████╔╝███████╗
-     ╚═╝      ╚═╝   ╚═════╝ ╚══════╝`
+    __    _ __  __        __               __  __ ______ ____  __ 
+   / /_  (_) /_/ /_____ _/ /_____   '__   / / / //_  __// __ \/ / 
+  / __ \/ / __/ __/ __ '/ //_/ _ \  / _\ / /_/ /  / /  / / / / /  
+ / / / / / /_/ /_/ /_/ / ,< /  __/ /__ \ \__, /  / /  / /_/ / /___
+/_/ /_/_/\__/\__/\__,_/_/|_|\___/  \___//____/  /_/  /_____/_____/`
 
 func (m Model) View() string {
 	var b strings.Builder
 
 	// Top Banner
 	b.WriteString(StyleTitle.Render(BannerASCII))
-	b.WriteString("\n")
-	b.WriteString(StyleSubtitle.Render("    ⚡ Modern YouTube Downloader"))
 	b.WriteString("\n\n")
 
 	switch m.State {

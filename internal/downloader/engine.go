@@ -38,6 +38,8 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 	args := []string{
 		"--newline",
 		"--no-mtime",
+		"--progress",
+		"--no-quiet",
 		"--progress-template", "DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._total_bytes_str|progress._total_bytes_estimate_str)s",
 		"--print", "after_move:FINAL_PATH:%(filepath)s",
 		"-o", filepath.Join(opts.OutputDir, "%(title)s.%(ext)s"),
@@ -124,6 +126,18 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 			continue
 		}
 
+		if strings.HasPrefix(line, "[download] Destination: ") {
+			finalFilePath = strings.TrimSpace(strings.TrimPrefix(line, "[download] Destination: "))
+		} else if strings.Contains(line, " has already been downloaded") && strings.HasPrefix(line, "[download] ") {
+			f := strings.TrimPrefix(line, "[download] ")
+			f = strings.TrimSuffix(f, " has already been downloaded")
+			finalFilePath = strings.TrimSpace(f)
+		} else if strings.HasPrefix(line, "[Merger] Merging formats into \"") {
+			f := strings.TrimPrefix(line, "[Merger] Merging formats into \"")
+			f = strings.TrimSuffix(f, "\"")
+			finalFilePath = strings.TrimSpace(f)
+		}
+
 		if strings.HasPrefix(line, "DOWNLOAD_PROGRESS:") {
 			raw := strings.TrimPrefix(line, "DOWNLOAD_PROGRESS:")
 			parts := strings.Split(raw, "|")
@@ -134,8 +148,17 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 					lastPercent = pct
 				}
 				speed := strings.TrimSpace(parts[1])
+				if speed == "Unknown B/s" || speed == "NA" {
+					speed = ""
+				}
 				eta := strings.TrimSpace(parts[2])
+				if eta == "Unknown" || eta == "NA" {
+					eta = ""
+				}
 				total := strings.TrimSpace(parts[3])
+				if total == "NA" {
+					total = ""
+				}
 
 				if opts.OnProgress != nil {
 					opts.OnProgress(ProgressUpdate{
@@ -154,12 +177,20 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		if matches := fallbackRegex.FindStringSubmatch(line); len(matches) == 5 {
 			pct, _ := strconv.ParseFloat(matches[1], 64)
 			lastPercent = pct
+			eta := matches[4]
+			if eta == "Unknown" || eta == "NA" {
+				eta = ""
+			}
+			speed := matches[3]
+			if speed == "Unknown B/s" || speed == "NA" {
+				speed = ""
+			}
 			if opts.OnProgress != nil {
 				opts.OnProgress(ProgressUpdate{
 					Percent:       lastPercent,
 					TotalSize:     matches[2],
-					Speed:         matches[3],
-					ETA:           matches[4],
+					Speed:         speed,
+					ETA:           eta,
 					StatusMessage: "Đang tải dữ liệu...",
 				})
 			}
@@ -203,6 +234,8 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 			res.FileSize = fi.Size()
 			res.FormattedSize = util.FormatBytes(fi.Size())
 		}
+	} else {
+		res.FilePath = opts.OutputDir
 	}
 
 	return res, nil

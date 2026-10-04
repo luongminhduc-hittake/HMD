@@ -61,16 +61,32 @@ func GetDefaultDownloadDir() string {
 
 // OpenFolder opens the given folder or parent directory of a file in the system file explorer.
 func OpenFolder(targetPath string) error {
-	info, err := os.Stat(targetPath)
-	folder := targetPath
-	if err == nil && !info.IsDir() {
-		folder = filepath.Dir(targetPath)
+	if targetPath == "" {
+		targetPath = GetDefaultDownloadDir()
 	}
+	targetPath = filepath.Clean(targetPath)
+
+	folder := targetPath
+	fi, err := os.Stat(targetPath)
+	if err == nil && !fi.IsDir() {
+		folder = filepath.Dir(targetPath)
+	} else if err != nil {
+		dir := filepath.Dir(targetPath)
+		if fiDir, errDir := os.Stat(dir); errDir == nil && fiDir.IsDir() {
+			folder = dir
+		} else {
+			folder = GetDefaultDownloadDir()
+		}
+	}
+
+	folder = filepath.Clean(folder)
+	_ = os.MkdirAll(folder, 0755)
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("explorer.exe", folder)
+		winFolder := filepath.FromSlash(folder)
+		cmd = exec.Command("explorer.exe", winFolder)
 	case "darwin":
 		cmd = exec.Command("open", folder)
 	default:

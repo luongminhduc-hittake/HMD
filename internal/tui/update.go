@@ -344,9 +344,15 @@ func (m Model) updateCompleted(msg tea.Msg) (Model, tea.Cmd) {
 				m.ProgressData = downloader.ProgressUpdate{}
 				return m, nil
 			case 1: // Mở thư mục chứa file
+				target := ""
 				if m.Result != nil && m.Result.FilePath != "" {
-					_ = util.OpenFolder(m.Result.FilePath)
+					target = m.Result.FilePath
+				} else if m.OutputDir != "" {
+					target = m.OutputDir
+				} else {
+					target = util.GetDefaultDownloadDir()
 				}
+				_ = util.OpenFolder(target)
 				return m, nil
 			case 2: // Thoát
 				return m, tea.Quit
