@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -141,6 +142,8 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		OutputDir:        outDir,
 		Preset:           preset,
 		DownloadPlaylist: m.DownloadPlaylist,
+		TrimRange:        m.TrimRange,
+		EnableSubtitles:  m.EnableSubtitles,
 		OnProgress: func(pu downloader.ProgressUpdate) {
 			ch <- msgDownloadProgress{progress: pu}
 		},
@@ -250,6 +253,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.MediaInfo != nil {
 			m.Result.Title = m.MediaInfo.Title
 		}
+		if m.Result != nil && m.MediaInfo != nil {
+			presetTitle := downloader.AvailablePresets[m.PresetIndex].Title
+			_ = util.AddHistoryEntry(util.HistoryEntry{
+				URL:       m.MediaInfo.RawURL,
+				Title:     m.Result.Title,
+				Format:    presetTitle,
+				FilePath:  m.Result.FilePath,
+				FileSize:  m.Result.FileSize,
+				CreatedAt: time.Now(),
+			})
+		}
 		m.State = StateCompleted
 		m.ActionIndex = 0
 		return m, nil
@@ -323,6 +337,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StateUpdating:
 		m, cmd = m.updateSelfUpdating(msg)
 		cmds = append(cmds, cmd)
+
+	case StateHistory:
+		m, cmd = m.updateHistory(msg)
+		cmds = append(cmds, cmd)
+
+	case StateInputTrim:
+		m, cmd = m.updateInputTrim(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -359,8 +381,20 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 			if m.Input.Value() == "" {
 				return m.triggerPickFolder()
 			}
+		case "h", "H":
+			if m.Input.Value() == "" {
+				m.History = util.LoadHistory()
+				m.HistoryIndex = 0
+				m.State = StateHistory
+				return m, nil
+			}
+		case "o", "O":
+			if m.DuplicateHistory != nil && m.DuplicateHistory.FilePath != "" {
+				_ = util.OpenFolder(m.DuplicateHistory.FilePath)
+				return m, nil
+			}
 		case "enter":
-			val := m.Input.Value()
+			val := strings.TrimSpace(m.Input.Value())
 			if val == "" {
 				return m, nil
 			}
@@ -372,7 +406,11 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
+	prevVal := m.Input.Value()
 	m.Input, cmd = m.Input.Update(msg)
+	if m.Input.Value() != prevVal {
+		m.DuplicateHistory = util.FindHistoryByURL(m.Input.Value())
+	}
 	return m, cmd
 }
 
@@ -448,6 +486,14 @@ func (m Model) updateSelectPreset(msg tea.Msg) (Model, tea.Cmd) {
 			if idx >= 0 && idx < len(downloader.AvailablePresets) {
 				m.PresetIndex = idx
 			}
+		case "s", "S":
+			m.EnableSubtitles = !m.EnableSubtitles
+			return m, nil
+		case "t", "T":
+			m.State = StateInputTrim
+			m.TrimInput.SetValue(m.TrimRange)
+			m.TrimInput.Focus()
+			return m, textinput.Blink
 		case "enter":
 			m.State = StateDownloading
 			m.ProgressData = downloader.ProgressUpdate{
@@ -463,6 +509,57 @@ func (m Model) updateSelectPreset(msg tea.Msg) (Model, tea.Cmd) {
 				m.State = StateInputURL
 				m.Input.Focus()
 			}
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateInputTrim(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			m.TrimRange = strings.TrimSpace(m.TrimInput.Value())
+			m.State = StateSelectPreset
+			return m, nil
+		case "esc":
+			m.State = StateSelectPreset
+			return m, nil
+		}
+	}
+	var cmd tea.Cmd
+	m.TrimInput, cmd = m.TrimInput.Update(msg)
+	return m, cmd
+}
+
+func (m Model) updateHistory(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			if m.HistoryIndex > 0 {
+				m.HistoryIndex--
+			}
+		case "down", "j":
+			if m.HistoryIndex < len(m.History)-1 {
+				m.HistoryIndex++
+			}
+		case "enter", "o":
+			if len(m.History) > 0 && m.HistoryIndex < len(m.History) {
+				_ = util.OpenFolder(m.History[m.HistoryIndex].FilePath)
+			}
+		case "d", "backspace":
+			if len(m.History) > 0 && m.HistoryIndex < len(m.History) {
+				_ = util.DeleteHistoryEntry(m.HistoryIndex)
+				m.History = util.LoadHistory()
+				if m.HistoryIndex >= len(m.History) && m.HistoryIndex > 0 {
+					m.HistoryIndex = len(m.History) - 1
+				}
+			}
+		case "esc", "q", "h":
+			m.State = StateInputURL
+			m.Input.Focus()
+			return m, nil
 		}
 	}
 	return m, nil

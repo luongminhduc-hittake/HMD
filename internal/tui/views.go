@@ -43,6 +43,10 @@ func (m Model) View() string {
 		b.WriteString(m.viewError())
 	case StateUpdating:
 		b.WriteString(m.viewUpdating())
+	case StateHistory:
+		b.WriteString(m.viewHistory())
+	case StateInputTrim:
+		b.WriteString(m.viewInputTrim())
 	}
 
 	return b.String()
@@ -72,6 +76,12 @@ func (m Model) viewInputURL() string {
 			StyleHighlight.Render(fmt.Sprintf("Có bản cập nhật mới %s! Nhấn 'u' để nâng cấp tự động.", m.AvailableUpdate.TagName)) + "\n\n")
 	}
 
+	if m.DuplicateHistory != nil {
+		s.WriteString(StyleBadgeWarning.Render("ĐÃ TẢI TRƯỚC ĐÂY") + " " +
+			StyleHighlight.Render(fmt.Sprintf("Đã tải: %s (%s)", m.DuplicateHistory.Title, m.DuplicateHistory.Format)) + "\n" +
+			StyleHelp.Render(fmt.Sprintf("📂 Tệp: %s\n⏱ Ngày tải: %s (Nhấn 'o' để mở tệp ngay)", m.DuplicateHistory.FilePath, m.DuplicateHistory.CreatedAt.Format("15:04 02/01/2006"))) + "\n\n")
+	}
+
 	s.WriteString(StyleHighlight.Render("Nhập liên kết video, âm thanh hoặc danh sách phát:") + "\n\n")
 	s.WriteString(m.Input.View() + "\n\n")
 
@@ -86,9 +96,12 @@ func (m Model) viewInputURL() string {
 		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s  (Bấm 'c' để đổi)\n", m.OutputDir)))
 	}
 
-	helpText := "Phím tắt: Enter (Tiếp tục) • c (Đổi thư mục) • Esc / Ctrl+C (Thoát)"
+	helpText := "Phím tắt: Enter (Tiếp tục) • h (Lịch sử) • c (Đổi thư mục) • Esc / Ctrl+C (Thoát)"
+	if m.DuplicateHistory != nil {
+		helpText = "Phím tắt: Enter (Tải lại) • o (Mở tệp cũ) • h (Lịch sử) • c (Đổi thư mục) • Esc (Thoát)"
+	}
 	if m.AvailableUpdate != nil {
-		helpText = "Phím tắt: Enter (Tiếp tục) • c (Đổi thư mục) • u (Cập nhật app) • Esc / Ctrl+C (Thoát)"
+		helpText += " • u (Cập nhật app)"
 	}
 	s.WriteString(StyleHelp.Render(helpText))
 
@@ -143,6 +156,17 @@ func (m Model) viewSelectPreset() string {
 		s.WriteString(StyleHelp.Render(fmt.Sprintf("👤 Kênh: %s  •  ⏱ Thời lượng: %s", m.MediaInfo.Uploader, m.MediaInfo.Duration)) + "\n\n")
 	}
 
+	trimStatus := "Không (Tải trọn vẹn)"
+	if m.TrimRange != "" {
+		trimStatus = m.TrimRange
+	}
+	subStatus := "TẮT"
+	if m.EnableSubtitles {
+		subStatus = "BẬT (vi, en soft-subs)"
+	}
+	s.WriteString(fmt.Sprintf("✂️  Cắt đoạn [t]: %s   │   💬 Phụ đề [s]: %s\n\n",
+		StyleHighlight.Render(trimStatus), StyleHighlight.Render(subStatus)))
+
 	s.WriteString("Chọn định dạng và chất lượng tải về:\n\n")
 
 	for i, opt := range downloader.AvailablePresets {
@@ -156,7 +180,7 @@ func (m Model) viewSelectPreset() string {
 		}
 	}
 
-	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓ hoặc phím 1-7: Chọn • Enter: Tải ngay • Esc: Quay lại"))
+	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓/1-7: Chọn • t: Cắt đoạn • s: Bật/tắt phụ đề • Enter: Tải ngay • Esc: Quay lại"))
 	return StyleCard.Render(s.String())
 }
 
@@ -305,5 +329,62 @@ func (m Model) viewUpdating() string {
 	}
 	s.WriteString(StyleHelp.Render("Đang cài đặt trực tiếp vào hệ thống... Vui lòng chờ."))
 
+	return StyleCard.Render(s.String())
+}
+
+func (m Model) viewInputTrim() string {
+	var s strings.Builder
+
+	s.WriteString(StyleBadgeInfo.Render("CẮT ĐOẠN") + " " + StyleHighlight.Render("Cắt đoạn thời gian Video / Audio") + "\n\n")
+	s.WriteString(StyleHelp.Render("Nhập khoảng thời gian cần cắt (VD: 01:20-03:45, 00:30-01:00 hoặc 0-60):\n(Để trống và nhấn Enter để hủy cắt đoạn, tải toàn bộ)\n\n"))
+	s.WriteString(m.TrimInput.View() + "\n\n")
+	s.WriteString(StyleHelp.Render("Phím tắt: Enter (Lưu & Quay lại) • Esc (Hủy bỏ)"))
+
+	return StyleCard.Render(s.String())
+}
+
+func (m Model) viewHistory() string {
+	var s strings.Builder
+
+	s.WriteString(StyleBadgeInfo.Render("LỊCH SỬ TẢI") + " " + StyleHighlight.Render(fmt.Sprintf("Lịch sử tải xuống gần đây (%d tệp)", len(m.History))) + "\n\n")
+
+	if len(m.History) == 0 {
+		s.WriteString(StyleHelp.Render("Chưa có lượt tải nào được ghi nhận.") + "\n\n")
+	} else {
+		start := 0
+		maxVisible := 7
+		if m.HistoryIndex >= maxVisible {
+			start = m.HistoryIndex - maxVisible + 1
+		}
+		end := start + maxVisible
+		if end > len(m.History) {
+			end = len(m.History)
+		}
+
+		for i := start; i < end; i++ {
+			entry := m.History[i]
+			sizeStr := ""
+			if entry.FileSize > 0 {
+				sizeStr = fmt.Sprintf(" • %.1f MB", float64(entry.FileSize)/(1024*1024))
+			}
+			dateStr := entry.CreatedAt.Format("15:04 02/01/06")
+			prefix := "  "
+			title := entry.Title
+			if len(title) > 50 {
+				title = title[:47] + "..."
+			}
+			line := fmt.Sprintf("[%d] %s (%s%s - %s)", i+1, title, entry.Format, sizeStr, dateStr)
+			if i == m.HistoryIndex {
+				prefix = "▶ "
+				s.WriteString(StyleSelected.Render(prefix+line) + "\n")
+				s.WriteString(StyleHelp.Render(fmt.Sprintf("    📂 %s", entry.FilePath)) + "\n")
+			} else {
+				s.WriteString(StyleNormal.Render(prefix+line) + "\n")
+			}
+		}
+		s.WriteString("\n")
+	}
+
+	s.WriteString(StyleHelp.Render("Phím tắt: ↑/↓ hoặc j/k (Chọn) • Enter/o (Mở tệp/thư mục) • d (Xóa dòng này) • Esc/h (Quay lại)"))
 	return StyleCard.Render(s.String())
 }

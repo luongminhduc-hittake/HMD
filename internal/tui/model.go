@@ -28,6 +28,8 @@ const (
 	StateCompleted
 	StateError
 	StateUpdating
+	StateHistory
+	StateInputTrim
 )
 
 // Model represents the overall TUI application state.
@@ -77,6 +79,16 @@ type Model struct {
 	UpdateProgress  float64
 	UpdateError     error
 	UpdateSuccess   bool
+
+	// History state
+	History          []util.HistoryEntry
+	HistoryIndex     int
+	DuplicateHistory *util.HistoryEntry
+
+	// Trim & Subtitle options
+	TrimRange       string
+	TrimInput       textinput.Model
+	EnableSubtitles bool
 }
 
 // InitialModel constructs the default model state.
@@ -89,8 +101,10 @@ func InitialModel(customOutputDir, initialURL string) Model {
 
 	ti := textinput.New()
 	ti.Placeholder = "Dán đường dẫn YouTube tại đây (Ctrl+V hoặc chuột phải)..."
+	var dup *util.HistoryEntry
 	if initialURL != "" {
 		ti.SetValue(initialURL)
+		dup = util.FindHistoryByURL(initialURL)
 	}
 	ti.Focus()
 	ti.CharLimit = 512
@@ -102,6 +116,11 @@ func InitialModel(customOutputDir, initialURL string) Model {
 	di.CharLimit = 512
 	di.Width = 60
 
+	tri := textinput.New()
+	tri.Placeholder = "VD: 01:20-03:45 hoặc 00:30-01:00 (Enter để lưu, để trống để tắt)..."
+	tri.CharLimit = 64
+	tri.Width = 60
+
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = StyleHighlight
@@ -112,14 +131,16 @@ func InitialModel(customOutputDir, initialURL string) Model {
 	)
 
 	return Model{
-		State:         StateCheckDeps,
-		OutputDir:     effectiveDir,
-		Input:         ti,
-		DirInput:      di,
-		Spinner:       s,
-		ProgressModel: prog,
-		PresetIndex:   0,
-		PlaylistIndex: 0,
-		ActionIndex:   0,
+		State:            StateCheckDeps,
+		OutputDir:        effectiveDir,
+		Input:            ti,
+		DirInput:         di,
+		TrimInput:        tri,
+		Spinner:          s,
+		ProgressModel:    prog,
+		PresetIndex:      0,
+		PlaylistIndex:    0,
+		ActionIndex:      0,
+		DuplicateHistory: dup,
 	}
 }

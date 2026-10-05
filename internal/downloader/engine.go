@@ -22,6 +22,8 @@ type DownloadOptions struct {
 	OutputDir        string
 	Preset           FormatPreset
 	DownloadPlaylist bool
+	TrimRange        string
+	EnableSubtitles  bool
 	OnProgress       func(ProgressUpdate)
 	OnStatus         func(string)
 }
@@ -31,12 +33,12 @@ var (
 	errorItemRegex    = regexp.MustCompile(`ERROR:\s*\[[^\]]+\]\s*([^:\s]+):`)
 )
 
-// ExecuteDownload initiates yt-dlp with appropriate flags and streams progress updates.
-func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult, error) {
-	if opts.OutputDir == "" {
-		opts.OutputDir = util.GetDefaultDownloadDir()
+// BuildDownloadArgs constructs the CLI arguments for yt-dlp.
+func BuildDownloadArgs(opts DownloadOptions) []string {
+	outputDir := opts.OutputDir
+	if outputDir == "" {
+		outputDir = util.GetDefaultDownloadDir()
 	}
-	_ = os.MkdirAll(opts.OutputDir, 0755)
 
 	args := []string{
 		"--newline",
@@ -45,7 +47,7 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		"--no-quiet",
 		"--progress-template", "DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._total_bytes_str|progress._total_bytes_estimate_str)s",
 		"--print", "after_move:FINAL_PATH:%(filepath)s",
-		"-o", filepath.Join(opts.OutputDir, "%(title)s.%(ext)s"),
+		"-o", filepath.Join(outputDir, "%(title)s.%(ext)s"),
 	}
 
 	if opts.FFmpegPath != "" {
@@ -118,7 +120,40 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		)
 	}
 
-	args = append(args, opts.URL)
+	// Soft subtitles
+	if opts.EnableSubtitles {
+		args = append(args,
+			"--write-subs",
+			"--write-auto-subs",
+			"--sub-langs", "vi.*,en.*,vi,en",
+			"--embed-subs",
+		)
+	}
+
+	// Time-range trim
+	if strings.TrimSpace(opts.TrimRange) != "" {
+		trim := strings.TrimSpace(opts.TrimRange)
+		if !strings.HasPrefix(trim, "*") {
+			trim = "*" + trim
+		}
+		args = append(args, "--download-sections", trim, "--force-keyframes-at-cuts")
+	}
+
+	if opts.URL != "" {
+		args = append(args, opts.URL)
+	}
+
+	return args
+}
+
+// ExecuteDownload initiates yt-dlp with appropriate flags and streams progress updates.
+func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult, error) {
+	if opts.OutputDir == "" {
+		opts.OutputDir = util.GetDefaultDownloadDir()
+	}
+	_ = os.MkdirAll(opts.OutputDir, 0755)
+
+	args := BuildDownloadArgs(opts)
 
 	cmd := exec.CommandContext(ctx, opts.YtDlpPath, args...)
 
