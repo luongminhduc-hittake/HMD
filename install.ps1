@@ -18,7 +18,7 @@ if (Test-Path $SourceExe) {
     Copy-Item -Path $SourceExe -Destination $TargetExe -Force
 } else {
     Write-Host "Đang tải bản hmd.exe mới nhất từ GitHub..." -ForegroundColor Yellow
-    $DownloadUrl = "https://github.com/luongminhduc-hittake/ytdownloader/releases/latest/download/hmd-windows-amd64.exe"
+    $DownloadUrl = "https://github.com/luongminhduc-hittake/HMD/releases/latest/download/hmd-windows-amd64.exe"
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $TargetExe -UseBasicParsing
 }
 

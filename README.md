@@ -18,7 +18,7 @@
 
 ## 📥 Tải về
 
-Tải bản mới nhất tại [GitHub Releases](https://github.com/luongminhduc-hittake/ytdownloader/releases/latest):
+Tải bản mới nhất tại [GitHub Releases](https://github.com/luongminhduc-hittake/HMD/releases/latest):
 - **Windows**: `hmd-windows-amd64.exe` (hoặc `hmd.exe`)
 - **Linux**: `hmd-linux-amd64` (hoặc `hmd`)
 

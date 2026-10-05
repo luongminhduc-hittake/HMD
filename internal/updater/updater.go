@@ -16,7 +16,7 @@ import (
 
 const (
 	CurrentVersion = "2.0.0"
-	GitHubRepo     = "luongminhduc-hittake/ytdownloader"
+	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 
 type gitHubRelease struct {
