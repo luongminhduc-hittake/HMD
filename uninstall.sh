@@ -17,13 +17,19 @@ for desktop in "${HOME}/.local/share/applications/hmd.desktop" "${HOME}/.local/s
     fi
 done
 
-if [ -f "${HOME}/.local/share/icons/hittakeMD.png" ]; then
-    rm -f "${HOME}/.local/share/icons/hittakeMD.png"
-    echo "✔ Đã xóa icon ${HOME}/.local/share/icons/hittakeMD.png"
-fi
+rm -f "${HOME}/.local/share/icons/hittakeMD.png"
+rm -f "${HOME}/.local/share/icons/hmd.png"
+rm -f "${HOME}/.local/share/icons/hicolor/"*"/apps/hittakeMD."*
+rm -f "${HOME}/.local/share/icons/hicolor/"*"/apps/hmd."*
+rm -f "${HOME}/.local/share/pixmaps/hittakeMD.png"
+rm -f "${HOME}/.local/share/pixmaps/hmd.png"
 
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "${HOME}/.local/share/applications" >/dev/null 2>&1 || true
+fi
+
+if command -v omarchy-menu >/dev/null 2>&1; then
+    omarchy-menu refresh >/dev/null 2>&1 || true
 fi
 
 echo "✔ Gỡ cài đặt hittakeMD hoàn tất!"
