@@ -47,7 +47,7 @@ Tải bản mới nhất tại [GitHub Releases](https://github.com/luongminhduc
 ## 🐧 Cài đặt trên Linux
 
 ```bash
-./install.sh    # Tự động cài vào ~/.local/bin/hmd, tạo symlink ytdl và thêm icon vào App Menu
+./install.sh    # Tự động cài vào ~/.local/bin/hmd và thêm icon vào App Menu
 ./uninstall.sh  # Gỡ cài đặt
 ```
 

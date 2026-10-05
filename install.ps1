@@ -10,9 +10,6 @@ New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
 $CurrentDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SourceExe = "$CurrentDir\hmd.exe"
-if (-not (Test-Path $SourceExe)) {
-    $SourceExe = "$CurrentDir\ytdl.exe"
-}
 
 if (Test-Path $SourceExe) {
     Copy-Item -Path $SourceExe -Destination $TargetExe -Force

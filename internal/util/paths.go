@@ -8,7 +8,7 @@ import (
 	"runtime"
 )
 
-// GetAppDir returns the directory where ytdl stores configuration and binaries.
+// GetAppDir returns the directory where hittakeMD stores configuration and binaries.
 func GetAppDir() (string, error) {
 	var baseDir string
 	if runtime.GOOS == "windows" {

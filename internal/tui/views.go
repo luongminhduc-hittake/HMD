@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"ytdownloader/internal/downloader"
+	"hmd/internal/downloader"
 )
 
 const BannerASCII = `
@@ -288,7 +288,7 @@ func (m Model) viewUpdating() string {
 	if m.UpdateSuccess {
 		s.WriteString(StyleBadgeSuccess.Render("✔ CẬP NHẬT THÀNH CÔNG!") + "\n\n")
 		s.WriteString("Ứng dụng đã được nâng cấp lên phiên bản mới nhất thành công.\n\n")
-		s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để thoát. Vui lòng mở lại ytdl để sử dụng."))
+		s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để thoát. Vui lòng mở lại hmd để sử dụng."))
 		return StyleSuccessCard.Render(s.String())
 	}
 

@@ -10,10 +10,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"ytdownloader/internal/deps"
-	"ytdownloader/internal/downloader"
-	"ytdownloader/internal/updater"
-	"ytdownloader/internal/util"
+	"hmd/internal/deps"
+	"hmd/internal/downloader"
+	"hmd/internal/updater"
+	"hmd/internal/util"
 )
 
 // Internal message types

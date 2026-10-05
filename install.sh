@@ -14,7 +14,7 @@ go build -ldflags="-s -w" -o hmd .
 echo "📦 Đang cài đặt vào ${BIN_DIR}..."
 mkdir -p "${BIN_DIR}" "${APP_DIR}" "${HICOLOR_DIR}/256x256/apps" "${HICOLOR_DIR}/scalable/apps" "${PIXMAPS_DIR}"
 install -m 755 "${SCRIPT_DIR}/hmd" "${BIN_DIR}/hmd"
-ln -sf "${BIN_DIR}/hmd" "${BIN_DIR}/ytdl"
+rm -f "${BIN_DIR}/ytdl" "${APP_DIR}/ytdl.desktop"
 
 echo "🎨 Đang cài đặt icon ứng dụng vào icon theme (hicolor & pixmaps)..."
 install -m 644 "${SCRIPT_DIR}/assets/icon.png" "${HICOLOR_DIR}/256x256/apps/hittakeMD.png"
@@ -36,7 +36,7 @@ if command -v omarchy-menu >/dev/null 2>&1; then
 fi
 
 echo "✔ Cài đặt hittakeMD hoàn tất thành công!"
-echo "  - Lệnh gõ:  ${BIN_DIR}/hmd (hoặc gõ ytdl)"
+echo "  - Lệnh gõ:  ${BIN_DIR}/hmd"
 echo "  - Desktop:  ${APP_DIR}/hmd.desktop"
 echo "  - Icon:     ${HICOLOR_DIR}/256x256/apps/hittakeMD.png"
 

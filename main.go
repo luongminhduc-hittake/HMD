@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"ytdownloader/internal/tui"
-	"ytdownloader/internal/updater"
-	"ytdownloader/internal/util"
+	"hmd/internal/tui"
+	"hmd/internal/updater"
+	"hmd/internal/util"
 )
 
 func main() {

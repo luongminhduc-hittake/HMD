@@ -1,12 +1,11 @@
 # Binaries
 *.exe
-!ytdl.exe
 !hmd.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-ytdownloader
+hmd
 
 # Output and temp files
 downloads/

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"ytdownloader/internal/util"
+	"hmd/internal/util"
 )
 
 // DownloadOptions defines configuration for the download job.

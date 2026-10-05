@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	CurrentVersion = "2.0.0"
+	CurrentVersion = "2.0.1"
 	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 
@@ -47,7 +47,7 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "ytdl-self-updater")
+	req.Header.Set("User-Agent", "hmd-self-updater")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
 	resp, err := client.Do(req)
@@ -150,7 +150,7 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 	}
 
 	execDir := filepath.Dir(execPath)
-	tmpPath := filepath.Join(execDir, fmt.Sprintf(".ytdl_update_%d.tmp", time.Now().UnixNano()))
+	tmpPath := filepath.Join(execDir, fmt.Sprintf(".hmd_update_%d.tmp", time.Now().UnixNano()))
 
 	// Download file
 	client := &http.Client{Timeout: 60 * time.Second}

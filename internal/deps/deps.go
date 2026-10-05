@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 
-	"ytdownloader/internal/util"
+	"hmd/internal/util"
 )
 
 // Paths to binary tools.
@@ -136,7 +136,7 @@ func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ytdownloader")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) hittakeMD")
 
 	resp, err := client.Do(req)
 	if err != nil {

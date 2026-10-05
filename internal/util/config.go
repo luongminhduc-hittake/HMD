@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Config represents persistent user settings for ytdl.
+// Config represents persistent user settings for hmd.
 type Config struct {
 	DownloadDir string `json:"download_dir"`
 }
@@ -60,7 +60,7 @@ func LoadConfig() Config {
 	return cfg
 }
 
-// SaveConfig persists configuration to ~/.config/ytdl/config.json.
+// SaveConfig persists configuration to ~/.config/hmd/config.json.
 func SaveConfig(cfg Config) error {
 	cfgPath, err := GetConfigFilePath()
 	if err != nil {
