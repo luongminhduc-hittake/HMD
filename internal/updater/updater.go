@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 )
 
 const (
-	CurrentVersion = "1.2.0"
+	CurrentVersion = "2.0.0"
 	GitHubRepo     = "luongminhduc-hittake/ytdownloader"
 )
 
@@ -211,6 +212,10 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 			_ = os.Rename(oldPath, execPath)
 			return fmt.Errorf("lỗi cài đặt file mới: %w", err)
 		}
+		// Delayed background deletion of .old file once current process exits
+		cmdStr := fmt.Sprintf(`ping 127.0.0.1 -n 3 > nul & del /f /q "%s"`, oldPath)
+		cleanupCmd := exec.Command("cmd.exe", "/C", cmdStr)
+		_ = cleanupCmd.Start()
 	} else {
 		if err := os.Chmod(tmpPath, 0755); err != nil {
 			_ = os.Remove(tmpPath)

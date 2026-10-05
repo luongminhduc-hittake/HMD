@@ -1,6 +1,7 @@
 # Binaries
 *.exe
 !ytdl.exe
+!hmd.exe
 *.exe~
 *.dll
 *.so

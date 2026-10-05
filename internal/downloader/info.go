@@ -71,13 +71,13 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 	info := &MediaInfo{
 		RawURL:     rawURL,
 		IsPlaylist: isPlaylist,
-		Title:      "YouTube Video",
+		Title:      "Media Video",
 		Duration:   "N/A",
-		Uploader:   "YouTube",
+		Uploader:   "Media",
 	}
 	if isPurePlaylist {
 		info.Duration = "Playlist"
-		info.Title = "YouTube Playlist"
+		info.Title = "Media Playlist"
 	}
 
 	scanner := bufio.NewScanner(&stdout)

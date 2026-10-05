@@ -15,7 +15,8 @@ type Config struct {
 	DownloadDir string `json:"download_dir"`
 }
 
-// GetConfigFilePath returns the path to ~/.config/ytdl/config.json.
+// GetConfigFilePath returns the path to ~/.config/hmd/config.json.
+// If an older ~/.config/ytdl/config.json exists, it automatically migrates it.
 func GetConfigFilePath() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
@@ -25,11 +26,18 @@ func GetConfigFilePath() (string, error) {
 		}
 		configDir = filepath.Join(home, ".config")
 	}
-	appConfigDir := filepath.Join(configDir, "ytdl")
+	appConfigDir := filepath.Join(configDir, "hmd")
 	if err := os.MkdirAll(appConfigDir, 0755); err != nil {
 		return "", err
 	}
-	return filepath.Join(appConfigDir, "config.json"), nil
+	cfgPath := filepath.Join(appConfigDir, "config.json")
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+		oldCfg := filepath.Join(configDir, "ytdl", "config.json")
+		if oldData, err := os.ReadFile(oldCfg); err == nil {
+			_ = os.WriteFile(cfgPath, oldData, 0644)
+		}
+	}
+	return cfgPath, nil
 }
 
 // LoadConfig loads configuration from disk or returns defaults if absent.

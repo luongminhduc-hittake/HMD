@@ -28,7 +28,15 @@ func GetAppDir() (string, error) {
 		baseDir = filepath.Join(home, ".local", "share")
 	}
 
-	appDir := filepath.Join(baseDir, "ytdl")
+	appDir := filepath.Join(baseDir, "hittakeMD")
+	// Check if old ytdl dir exists and hittakeMD does not, migrate bin
+	oldAppDir := filepath.Join(baseDir, "ytdl")
+	if _, err := os.Stat(appDir); os.IsNotExist(err) {
+		if _, err := os.Stat(oldAppDir); err == nil {
+			_ = os.Rename(oldAppDir, appDir)
+		}
+	}
+
 	if err := os.MkdirAll(appDir, 0755); err != nil {
 		return "", err
 	}
@@ -54,7 +62,7 @@ func GetDefaultDownloadDir() string {
 	if err != nil {
 		return "downloads"
 	}
-	dlDir := filepath.Join(home, "Downloads", "YouTube")
+	dlDir := filepath.Join(home, "Downloads", "hittakeMD")
 	_ = os.MkdirAll(dlDir, 0755)
 	return dlDir
 }

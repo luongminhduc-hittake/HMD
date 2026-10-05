@@ -1,23 +1,29 @@
 #!/usr/bin/env bash
 set -e
 
-BIN_FILE="${HOME}/.local/bin/ytdl"
-DESKTOP_FILE="${HOME}/.local/share/applications/ytdl.desktop"
+echo "🗑  Đang gỡ cài đặt hittakeMD..."
 
-echo "🗑  Đang gỡ cài đặt ytdl..."
+for bin in "${HOME}/.local/bin/hmd" "${HOME}/.local/bin/ytdl"; do
+    if [ -f "${bin}" ] || [ -L "${bin}" ]; then
+        rm -f "${bin}"
+        echo "✔ Đã xóa ${bin}"
+    fi
+done
 
-if [ -f "${BIN_FILE}" ]; then
-    rm -f "${BIN_FILE}"
-    echo "✔ Đã xóa ${BIN_FILE}"
-fi
+for desktop in "${HOME}/.local/share/applications/hmd.desktop" "${HOME}/.local/share/applications/ytdl.desktop"; do
+    if [ -f "${desktop}" ]; then
+        rm -f "${desktop}"
+        echo "✔ Đã xóa ${desktop}"
+    fi
+done
 
-if [ -f "${DESKTOP_FILE}" ]; then
-    rm -f "${DESKTOP_FILE}"
-    echo "✔ Đã xóa ${DESKTOP_FILE}"
+if [ -f "${HOME}/.local/share/icons/hittakeMD.png" ]; then
+    rm -f "${HOME}/.local/share/icons/hittakeMD.png"
+    echo "✔ Đã xóa icon ${HOME}/.local/share/icons/hittakeMD.png"
 fi
 
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "${HOME}/.local/share/applications" >/dev/null 2>&1 || true
 fi
 
-echo "✔ Gỡ cài đặt hoàn tất!"
+echo "✔ Gỡ cài đặt hittakeMD hoàn tất!"

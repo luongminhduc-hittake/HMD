@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=hittakeMD
+GenericName=Media Downloader
+Comment=hittake's media downloader - Tải video và âm thanh từ YouTube, TikTok, Facebook...
+Exec=hmd
+Icon=hittakeMD
+Terminal=true
+Categories=Network;AudioVideo;Video;Audio;
+Keywords=media;video;audio;downloader;youtube;tiktok;facebook;mp3;mp4;flac;opus;
+StartupNotify=false

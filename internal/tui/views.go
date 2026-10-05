@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"ytdownloader/internal/downloader"
 )
 
 const BannerASCII = `
-    __    _ __  __        __               __  __ ______ ____  __ 
-   / /_  (_) /_/ /_____ _/ /_____   '__   / / / //_  __// __ \/ / 
-  / __ \/ / __/ __/ __ '/ //_/ _ \  / _\ / /_/ /  / /  / / / / /  
- / / / / / /_/ /_/ /_/ / ,< /  __/ /__ \ \__, /  / /  / /_/ / /___
-/_/ /_/_/\__/\__/\__,_/_/|_|\___/  \___//____/  /_/  /_____/_____/`
+    __    _ __  __        __          __  _______ 
+   / /_  (_) /_/ /_____ _/ /_____   /  |/  / __ \
+  / __ \/ / __/ __/ __ '/ //_/ _ \ / /|_/ / / / /
+ / / / / / /_/ /_/ /_/ / ,< /  __// /  / / /_/ / 
+/_/ /_/_/\__/\__/\__,_/_/|_|\___//_/  /_/_____/  `
 
 func (m Model) View() string {
 	var b strings.Builder
@@ -71,8 +72,15 @@ func (m Model) viewInputURL() string {
 			StyleHighlight.Render(fmt.Sprintf("Có bản cập nhật mới %s! Nhấn 'u' để nâng cấp tự động.", m.AvailableUpdate.TagName)) + "\n\n")
 	}
 
-	s.WriteString(StyleHighlight.Render("Nhập liên kết video hoặc danh sách phát:") + "\n\n")
+	s.WriteString(StyleHighlight.Render("Nhập liên kết video, âm thanh hoặc danh sách phát:") + "\n\n")
 	s.WriteString(m.Input.View() + "\n\n")
+
+	currVal := strings.TrimSpace(m.Input.Value())
+	if currVal != "" {
+		p := downloader.DetectPlatform(currVal)
+		badgeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(p.Color).Bold(true).Padding(0, 1)
+		s.WriteString(badgeStyle.Render(p.Name) + " " + StyleHelp.Render(fmt.Sprintf("Phát hiện liên kết từ %s", p.Name)) + "\n\n")
+	}
 
 	if m.OutputDir != "" {
 		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s  (Bấm 'c' để đổi)\n", m.OutputDir)))
@@ -99,7 +107,7 @@ func (m Model) viewChangeDir() string {
 
 func (m Model) viewFetchingInfo() string {
 	var s strings.Builder
-	s.WriteString(m.Spinner.View() + " " + StyleHighlight.Render("Đang phân tích link YouTube...") + "\n\n")
+	s.WriteString(m.Spinner.View() + " " + StyleHighlight.Render("Đang phân tích liên kết media...") + "\n\n")
 	s.WriteString(StyleHelp.Render("Đang lấy thông tin định dạng và danh sách phát..."))
 	return StyleCard.Render(s.String())
 }
@@ -190,7 +198,7 @@ func (m Model) viewDownloading() string {
 	// Current stage status
 	statusMsg := m.ProgressData.StatusMessage
 	if statusMsg == "" {
-		statusMsg = "Đang kết nối đến YouTube..."
+		statusMsg = "Đang kết nối đến máy chủ..."
 	}
 	s.WriteString(m.Spinner.View() + " " + StyleSubtitle.Render(statusMsg) + "\n\n")
 	s.WriteString(StyleHelp.Render("Phím tắt: Ctrl+C để hủy tải"))
