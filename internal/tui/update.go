@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -58,6 +60,19 @@ type msgUpdateProgress struct {
 
 type msgUpdateFinished struct {
 	err error
+}
+
+type msgFolderPicked struct {
+	path      string
+	cancelled bool
+	err       error
+}
+
+func pickFolderNativeCmd() tea.Cmd {
+	return func() tea.Msg {
+		path, cancelled, err := util.PickFolderNative()
+		return msgFolderPicked{path: path, cancelled: cancelled, err: err}
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -259,12 +274,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.UpdateSuccess = true
 		}
 		return m, nil
+
+	case msgFolderPicked:
+		if msg.cancelled {
+			return m, nil
+		}
+		if msg.err != nil {
+			m.State = StateChangeDir
+			m.DirInput.SetValue(m.OutputDir)
+			m.DirInput.Focus()
+			return m, textinput.Blink
+		}
+		if msg.path != "" {
+			_ = os.MkdirAll(msg.path, 0755)
+			m.OutputDir = msg.path
+			m.DirInput.SetValue(msg.path)
+			_ = util.SaveConfig(util.Config{DownloadDir: msg.path})
+		}
+		return m, nil
 	}
 
 	// State-specific interactions
 	switch m.State {
 	case StateInputURL:
 		m, cmd = m.updateInputURL(msg)
+		cmds = append(cmds, cmd)
+
+	case StateChangeDir:
+		m, cmd = m.updateChangeDir(msg)
 		cmds = append(cmds, cmd)
 
 	case StateSelectPlaylist:
@@ -291,6 +328,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m Model) triggerPickFolder() (Model, tea.Cmd) {
+	if util.HasNativePicker() {
+		return m, pickFolderNativeCmd()
+	}
+	m.State = StateChangeDir
+	m.DirInput.SetValue(m.OutputDir)
+	m.DirInput.Focus()
+	return m, textinput.Blink
+}
+
 func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -306,6 +353,12 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 				upCmd, m.ProgressChan = startSelfUpdateCmd(m.AvailableUpdate.DownloadURL)
 				return m, upCmd
 			}
+		case "ctrl+o":
+			return m.triggerPickFolder()
+		case "c", "C":
+			if m.Input.Value() == "" {
+				return m.triggerPickFolder()
+			}
 		case "enter":
 			val := m.Input.Value()
 			if val == "" {
@@ -320,6 +373,33 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	m.Input, cmd = m.Input.Update(msg)
+	return m, cmd
+}
+
+func (m Model) updateChangeDir(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			val := strings.TrimSpace(m.DirInput.Value())
+			if val != "" {
+				_ = os.MkdirAll(val, 0755)
+				m.OutputDir = val
+				_ = util.SaveConfig(util.Config{DownloadDir: val})
+			}
+			m.State = StateInputURL
+			m.Input.Focus()
+			return m, textinput.Blink
+		case "esc":
+			m.DirInput.SetValue(m.OutputDir)
+			m.State = StateInputURL
+			m.Input.Focus()
+			return m, textinput.Blink
+		}
+	}
+
+	var cmd tea.Cmd
+	m.DirInput, cmd = m.DirInput.Update(msg)
 	return m, cmd
 }
 
@@ -363,7 +443,7 @@ func (m Model) updateSelectPreset(msg tea.Msg) (Model, tea.Cmd) {
 			if m.PresetIndex < len(downloader.AvailablePresets)-1 {
 				m.PresetIndex++
 			}
-		case "1", "2", "3", "4", "5":
+		case "1", "2", "3", "4", "5", "6", "7":
 			idx := int(msg.String()[0] - '1')
 			if idx >= 0 && idx < len(downloader.AvailablePresets) {
 				m.PresetIndex = idx

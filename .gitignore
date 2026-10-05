@@ -10,4 +10,5 @@ ytdownloader
 # Output and temp files
 downloads/
 test_dl/
+dist/
 *.tmp

@@ -5,8 +5,8 @@ import (
 )
 
 func TestAvailablePresets(t *testing.T) {
-	if len(AvailablePresets) != 5 {
-		t.Fatalf("expected 5 available presets, got %d", len(AvailablePresets))
+	if len(AvailablePresets) != 7 {
+		t.Fatalf("expected 7 available presets, got %d", len(AvailablePresets))
 	}
 
 	expectedIDs := map[FormatPreset]bool{
@@ -15,6 +15,8 @@ func TestAvailablePresets(t *testing.T) {
 		Preset720p:      true,
 		PresetAudioMP3:  true,
 		PresetAudioM4A:  true,
+		PresetAudioFLAC: true,
+		PresetAudioOPUS: true,
 	}
 
 	for _, p := range AvailablePresets {

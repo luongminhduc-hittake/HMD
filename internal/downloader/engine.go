@@ -97,6 +97,20 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 			"--embed-thumbnail",
 			"--add-metadata",
 		)
+	case PresetAudioFLAC:
+		args = append(args,
+			"-x",
+			"--audio-format", "flac",
+			"--embed-thumbnail",
+			"--add-metadata",
+		)
+	case PresetAudioOPUS:
+		args = append(args,
+			"-x",
+			"--audio-format", "opus",
+			"--embed-thumbnail",
+			"--add-metadata",
+		)
 	default:
 		args = append(args,
 			"-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b",

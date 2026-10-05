@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	CurrentVersion = "1.1.0"
+	CurrentVersion = "1.2.0"
 	GitHubRepo     = "luongminhduc-hittake/ytdownloader"
 )
 

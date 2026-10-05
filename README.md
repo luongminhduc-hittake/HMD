@@ -8,8 +8,9 @@
 
 - **1 file chạy duy nhất**: Tải về là dùng ngay (Windows `ytdl.exe`, Linux `ytdl`), tự động chuẩn bị `yt-dlp` và `ffmpeg` trong nền.
 - **Tự động cập nhật**: Nhấn `u` trên giao diện khi có bản mới để tự nâng cấp trực tiếp.
+- **Tùy chỉnh thư mục lưu**: Nhấn `c` trên giao diện để chọn thư mục lưu (qua hộp thoại native hoặc nhập đường dẫn), tự động lưu cấu hình.
 - **Tải Playlist thông minh**: Tự động bỏ qua video bị ẩn hoặc không khả dụng, không làm gián đoạn tiến trình tải.
-- **5 Định dạng tối ưu**: MP3 (320kbps kèm ảnh bìa), M4A (gốc AAC), Video Best, 1080p, 720p.
+- **7 Định dạng tối ưu**: MP3 (320kbps kèm bìa), M4A (gốc AAC), FLAC (Lossless), OPUS (Chất lượng cao), Video Best, 1080p, 720p.
 
 ---
 
@@ -25,9 +26,9 @@ Tải bản mới nhất tại [GitHub Releases](https://github.com/luongminhduc
 
 1. Sao chép đường link video hoặc playlist trên YouTube.
 2. Mở `ytdl` (nhấp đúp trên Windows hoặc gõ `ytdl` trên Linux).
-3. Dán link (`Ctrl + V`), nhấn `Enter`.
-4. Bấm số từ `1` đến `5` để chọn định dạng tải.
-5. Nhạc và video được lưu tự động tại thư mục `Downloads/YouTube`.
+3. Dán link (`Ctrl + V`), nhấn `Enter`. Có thể bấm `c` để đổi thư mục lưu tải về.
+4. Bấm số từ `1` đến `7` để chọn định dạng tải.
+5. Nhạc và video được lưu tự động tại thư mục lưu đã cấu hình (mặc định `Downloads/YouTube`).
 
 ---
 

@@ -8,10 +8,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"ytdownloader/internal/tui"
-	"ytdownloader/internal/util"
+	"ytdownloader/internal/updater"
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		arg := os.Args[1]
+		if arg == "-v" || arg == "--version" {
+			fmt.Printf("ytdl v%s\n", updater.CurrentVersion)
+			return
+		}
+	}
+
 	initialURL := ""
 	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
 		initialURL = os.Args[1]
@@ -19,7 +27,7 @@ func main() {
 
 	// Interactive TUI mode
 	p := tea.NewProgram(
-		tui.InitialModel(util.GetDefaultDownloadDir(), initialURL),
+		tui.InitialModel("", initialURL),
 		tea.WithAltScreen(),
 	)
 

@@ -26,6 +26,8 @@ func (m Model) View() string {
 		b.WriteString(m.viewCheckDeps())
 	case StateInputURL:
 		b.WriteString(m.viewInputURL())
+	case StateChangeDir:
+		b.WriteString(m.viewChangeDir())
 	case StateFetchingInfo:
 		b.WriteString(m.viewFetchingInfo())
 	case StateSelectPlaylist:
@@ -73,14 +75,24 @@ func (m Model) viewInputURL() string {
 	s.WriteString(m.Input.View() + "\n\n")
 
 	if m.OutputDir != "" {
-		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s\n", m.OutputDir)))
+		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s  (Bấm 'c' để đổi)\n", m.OutputDir)))
 	}
 
-	helpText := "Phím tắt: Enter (Tiếp tục) • Esc / Ctrl+C (Thoát)"
+	helpText := "Phím tắt: Enter (Tiếp tục) • c (Đổi thư mục) • Esc / Ctrl+C (Thoát)"
 	if m.AvailableUpdate != nil {
-		helpText = "Phím tắt: Enter (Tiếp tục) • u (Cập nhật app) • Esc / Ctrl+C (Thoát)"
+		helpText = "Phím tắt: Enter (Tiếp tục) • c (Đổi thư mục) • u (Cập nhật app) • Esc / Ctrl+C (Thoát)"
 	}
 	s.WriteString(StyleHelp.Render(helpText))
+
+	return StyleCard.Render(s.String())
+}
+
+func (m Model) viewChangeDir() string {
+	var s strings.Builder
+
+	s.WriteString(StyleHighlight.Render("Thay đổi thư mục lưu tải về:") + "\n\n")
+	s.WriteString(m.DirInput.View() + "\n\n")
+	s.WriteString(StyleHelp.Render("Phím tắt: Enter (Lưu & Áp dụng) • Esc (Hủy & Quay lại)"))
 
 	return StyleCard.Render(s.String())
 }
@@ -136,7 +148,7 @@ func (m Model) viewSelectPreset() string {
 		}
 	}
 
-	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓ hoặc phím 1-5: Chọn • Enter: Tải ngay • Esc: Quay lại"))
+	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓ hoặc phím 1-7: Chọn • Enter: Tải ngay • Esc: Quay lại"))
 	return StyleCard.Render(s.String())
 }
 
