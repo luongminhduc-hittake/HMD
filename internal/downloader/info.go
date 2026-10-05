@@ -38,6 +38,7 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 			"--playlist-items", "1",
 			"--print", "title:%(playlist_title|title)s",
 			"--print", "uploader:%(uploader|channel)s",
+			"--",
 			rawURL,
 		}
 	} else {
@@ -49,11 +50,13 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 			"--print", "title:%(title)s",
 			"--print", "duration_string:%(duration_string)s",
 			"--print", "uploader:%(uploader)s",
+			"--",
 			rawURL,
 		}
 	}
 
 	cmd := exec.CommandContext(ctx, ytdlpPath, args...)
+	prepareCommand(cmd)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

@@ -34,8 +34,8 @@ func TestBuildDownloadArgs(t *testing.T) {
 	if !strings.Contains(argStr, "--no-playlist") {
 		t.Errorf("expected --no-playlist, got args: %s", argStr)
 	}
-	if !strings.HasSuffix(argStr, "https://youtube.com/watch?v=12345") {
-		t.Errorf("expected URL to be at the end, got args: %s", argStr)
+	if !strings.HasSuffix(argStr, "-- https://youtube.com/watch?v=12345") {
+		t.Errorf("expected '-- URL' to be at the end, got args: %s", argStr)
 	}
 }
 

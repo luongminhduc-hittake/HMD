@@ -119,7 +119,7 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 	}
 
 	if opts.URL != "" {
-		args = append(args, opts.URL)
+		args = append(args, "--", opts.URL)
 	}
 
 	return args
@@ -135,6 +135,7 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 	args := BuildDownloadArgs(opts)
 
 	cmd := exec.CommandContext(ctx, opts.YtDlpPath, args...)
+	prepareCommand(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -147,6 +148,7 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 	}
 
 	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	var finalFilePath string
 	var lastStatus string
 	var lastPercent float64
@@ -253,7 +255,12 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		}
 	}
 
+	_ = stdout.Close()
 	waitErr := cmd.Wait()
+	if scanErr := scanner.Err(); scanErr != nil && waitErr == nil {
+		waitErr = fmt.Errorf("lỗi đọc dữ liệu từ yt-dlp: %w", scanErr)
+	}
+
 	downloadedCount := len(downloadedFiles)
 	skippedCount := len(skippedVideos)
 	if skippedCount == 0 && rawSkippedCount > 0 {

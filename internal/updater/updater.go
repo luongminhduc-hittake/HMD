@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	CurrentVersion = "2.2.0"
+	CurrentVersion = "2.2.1"
 	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 
@@ -149,23 +149,30 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 	}
 
 	execDir := filepath.Dir(execPath)
-	tmpPath := filepath.Join(execDir, fmt.Sprintf(".hmd_update_%d.tmp", time.Now().UnixNano()))
+	out, err := os.CreateTemp(execDir, ".hmd_update_*.tmp")
+	if err != nil {
+		return fmt.Errorf("không thể tạo file tạm: %w", err)
+	}
+	tmpPath := out.Name()
 
-	// Download file
-	client := &http.Client{Timeout: 60 * time.Second}
+	// Download file with header timeout rather than hard global body timeout
+	client := &http.Client{
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
 	resp, err := client.Get(downloadURL)
 	if err != nil {
+		out.Close()
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("lỗi kết nối tải bản cập nhật: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		out.Close()
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("máy chủ trả về mã lỗi: %d", resp.StatusCode)
-	}
-
-	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		return fmt.Errorf("không thể tạo file tạm: %w", err)
 	}
 
 	total := resp.ContentLength

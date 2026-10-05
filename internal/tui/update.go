@@ -133,16 +133,29 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		TrimRange:        m.TrimRange,
 		EnableSubtitles:  m.EnableSubtitles,
 		OnProgress: func(pu downloader.ProgressUpdate) {
-			ch <- msgDownloadProgress{progress: pu}
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- msgDownloadProgress{progress: pu}:
+			default:
+			}
 		},
 		OnStatus: func(st string) {
-			ch <- msgDownloadStatus{status: st}
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- msgDownloadStatus{status: st}:
+			default:
+			}
 		},
 	}
 
 	go func() {
 		res, err := downloader.ExecuteDownload(ctx, opts)
-		ch <- msgDownloadCompleted{result: res, err: err}
+		select {
+		case <-ctx.Done():
+		case ch <- msgDownloadCompleted{result: res, err: err}:
+		}
 		close(ch)
 	}()
 
@@ -364,6 +377,12 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 		case "enter":
 			val := strings.TrimSpace(m.Input.Value())
 			if val == "" {
+				return m, nil
+			}
+			if !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
+				m.State = StateError
+				m.ErrorMessage = "Đường dẫn không hợp lệ. Vui lòng nhập link bắt đầu bằng http:// hoặc https://"
+				m.ActionIndex = 0
 				return m, nil
 			}
 			m.State = StateFetchingInfo
