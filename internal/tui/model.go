@@ -99,12 +99,13 @@ func InitialModel(customOutputDir, initialURL string) Model {
 		effectiveDir = cfg.DownloadDir
 	}
 
+	hist := util.LoadHistory()
 	ti := textinput.New()
 	ti.Placeholder = "Dán đường dẫn YouTube tại đây (Ctrl+V hoặc chuột phải)..."
 	var dup *util.HistoryEntry
 	if initialURL != "" {
 		ti.SetValue(initialURL)
-		dup = util.FindHistoryByURL(initialURL)
+		dup = util.FindHistoryInEntries(hist, initialURL)
 	}
 	ti.Focus()
 	ti.CharLimit = 512
@@ -141,6 +142,7 @@ func InitialModel(customOutputDir, initialURL string) Model {
 		PresetIndex:      0,
 		PlaylistIndex:    0,
 		ActionIndex:      0,
+		History:          hist,
 		DuplicateHistory: dup,
 	}
 }

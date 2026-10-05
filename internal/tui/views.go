@@ -88,7 +88,7 @@ func (m Model) viewInputURL() string {
 	currVal := strings.TrimSpace(m.Input.Value())
 	if currVal != "" {
 		p := downloader.DetectPlatform(currVal)
-		badgeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(p.Color).Bold(true).Padding(0, 1)
+		badgeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color(p.Color)).Bold(true).Padding(0, 1)
 		s.WriteString(badgeStyle.Render(p.Name) + " " + StyleHelp.Render(fmt.Sprintf("Phát hiện liên kết từ %s", p.Name)) + "\n\n")
 	}
 

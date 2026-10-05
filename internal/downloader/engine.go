@@ -83,36 +83,15 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 			"-f", "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4] / bv*[height<=720]+ba/b[height<=720]",
 			"--merge-output-format", "mp4",
 		)
-	case PresetAudioMP3:
-		args = append(args,
-			"-x",
-			"--audio-format", "mp3",
-			"--audio-quality", "320K",
-			"--embed-thumbnail",
-			"--add-metadata",
-		)
-	case PresetAudioM4A:
-		args = append(args,
-			"-f", "ba[ext=m4a]/ba",
-			"-x",
-			"--audio-format", "m4a",
-			"--embed-thumbnail",
-			"--add-metadata",
-		)
-	case PresetAudioFLAC:
-		args = append(args,
-			"-x",
-			"--audio-format", "flac",
-			"--embed-thumbnail",
-			"--add-metadata",
-		)
-	case PresetAudioOPUS:
-		args = append(args,
-			"-x",
-			"--audio-format", "opus",
-			"--embed-thumbnail",
-			"--add-metadata",
-		)
+	case PresetAudioMP3, PresetAudioM4A, PresetAudioFLAC, PresetAudioOPUS:
+		if opts.Preset == PresetAudioM4A {
+			args = append(args, "-f", "ba[ext=m4a]/ba")
+		}
+		args = append(args, "-x", "--audio-format", string(opts.Preset))
+		if opts.Preset == PresetAudioMP3 {
+			args = append(args, "--audio-quality", "320K")
+		}
+		args = append(args, "--embed-thumbnail", "--add-metadata")
 	default:
 		args = append(args,
 			"-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b",

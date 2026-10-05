@@ -79,19 +79,23 @@ func AddHistoryEntry(entry HistoryEntry) error {
 	return SaveHistory(newEntries)
 }
 
-// FindHistoryByURL checks if a URL was previously downloaded.
-func FindHistoryByURL(rawURL string) *HistoryEntry {
+// FindHistoryInEntries searches an existing list of entries for a URL.
+func FindHistoryInEntries(entries []HistoryEntry, rawURL string) *HistoryEntry {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return nil
 	}
-	entries := LoadHistory()
 	for i := range entries {
 		if strings.TrimSpace(entries[i].URL) == rawURL {
 			return &entries[i]
 		}
 	}
 	return nil
+}
+
+// FindHistoryByURL checks if a URL was previously downloaded.
+func FindHistoryByURL(rawURL string) *HistoryEntry {
+	return FindHistoryInEntries(LoadHistory(), rawURL)
 }
 
 // DeleteHistoryEntry removes an entry at the given index.

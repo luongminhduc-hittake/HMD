@@ -41,14 +41,7 @@ func main() {
 		}
 	}
 
-	// 3. Self-registration on Windows: auto create shortcuts on first run
-	if runtime.GOOS == "windows" && !util.IsInstalledOnWindows() {
-		go func() {
-			_, _ = util.InstallOnWindows()
-		}()
-	}
-
-	// 4. Initial URL from arguments or auto-detect from clipboard
+	// 3. Initial URL from arguments or auto-detect from clipboard
 	initialURL := ""
 	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
 		initialURL = os.Args[1]

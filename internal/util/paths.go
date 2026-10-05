@@ -29,14 +29,6 @@ func GetAppDir() (string, error) {
 	}
 
 	appDir := filepath.Join(baseDir, "hittakeMD")
-	// Check if old ytdl dir exists and hittakeMD does not, migrate bin
-	oldAppDir := filepath.Join(baseDir, "ytdl")
-	if _, err := os.Stat(appDir); os.IsNotExist(err) {
-		if _, err := os.Stat(oldAppDir); err == nil {
-			_ = os.Rename(oldAppDir, appDir)
-		}
-	}
-
 	if err := os.MkdirAll(appDir, 0755); err != nil {
 		return "", err
 	}
@@ -75,19 +67,13 @@ func OpenFolder(targetPath string) error {
 	targetPath = filepath.Clean(targetPath)
 
 	folder := targetPath
-	fi, err := os.Stat(targetPath)
-	if err == nil && !fi.IsDir() {
+	if fi, err := os.Stat(targetPath); err != nil || !fi.IsDir() {
 		folder = filepath.Dir(targetPath)
-	} else if err != nil {
-		dir := filepath.Dir(targetPath)
-		if fiDir, errDir := os.Stat(dir); errDir == nil && fiDir.IsDir() {
-			folder = dir
-		} else {
+		if fiDir, err := os.Stat(folder); err != nil || !fiDir.IsDir() {
 			folder = GetDefaultDownloadDir()
 		}
 	}
 
-	folder = filepath.Clean(folder)
 	_ = os.MkdirAll(folder, 0755)
 
 	var cmd *exec.Cmd

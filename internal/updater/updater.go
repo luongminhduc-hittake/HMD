@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -112,31 +111,31 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 	}, nil
 }
 
+func parseSemver(v string) (major, minor, patch int) {
+	parts := strings.Split(strings.TrimPrefix(v, "v"), ".")
+	if len(parts) > 0 {
+		major, _ = strconv.Atoi(parts[0])
+	}
+	if len(parts) > 1 {
+		minor, _ = strconv.Atoi(parts[1])
+	}
+	if len(parts) > 2 {
+		patch, _ = strconv.Atoi(parts[2])
+	}
+	return
+}
+
 // isNewerVersion compares semver strings "X.Y.Z".
 func isNewerVersion(remote, current string) bool {
-	rParts := strings.Split(remote, ".")
-	cParts := strings.Split(current, ".")
-
-	for i := 0; i < len(rParts) && i < len(cParts); i++ {
-		rNum, err1 := strconv.Atoi(rParts[i])
-		cNum, err2 := strconv.Atoi(cParts[i])
-		if err1 == nil && err2 == nil {
-			if rNum > cNum {
-				return true
-			}
-			if rNum < cNum {
-				return false
-			}
-		} else {
-			if rParts[i] > cParts[i] {
-				return true
-			}
-			if rParts[i] < cParts[i] {
-				return false
-			}
-		}
+	r1, r2, r3 := parseSemver(remote)
+	c1, c2, c3 := parseSemver(current)
+	if r1 != c1 {
+		return r1 > c1
 	}
-	return len(rParts) > len(cParts)
+	if r2 != c2 {
+		return r2 > c2
+	}
+	return r3 > c3
 }
 
 // ApplyUpdate downloads the new binary and atomically replaces the currently running executable.
@@ -212,10 +211,6 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 			_ = os.Rename(oldPath, execPath)
 			return fmt.Errorf("lỗi cài đặt file mới: %w", err)
 		}
-		// Delayed background deletion of .old file once current process exits
-		cmdStr := fmt.Sprintf(`ping 127.0.0.1 -n 3 > nul & del /f /q "%s"`, oldPath)
-		cleanupCmd := exec.Command("cmd.exe", "/C", cmdStr)
-		_ = cleanupCmd.Start()
 	} else {
 		if err := os.Chmod(tmpPath, 0755); err != nil {
 			_ = os.Remove(tmpPath)

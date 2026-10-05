@@ -63,18 +63,6 @@ type msgUpdateFinished struct {
 	err error
 }
 
-type msgFolderPicked struct {
-	path      string
-	cancelled bool
-	err       error
-}
-
-func pickFolderNativeCmd() tea.Cmd {
-	return func() tea.Msg {
-		path, cancelled, err := util.PickFolderNative()
-		return msgFolderPicked{path: path, cancelled: cancelled, err: err}
-	}
-}
 
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
@@ -263,6 +251,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				FileSize:  m.Result.FileSize,
 				CreatedAt: time.Now(),
 			})
+			m.History = util.LoadHistory()
 		}
 		m.State = StateCompleted
 		m.ActionIndex = 0
@@ -286,24 +275,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.UpdateError = msg.err
 		} else {
 			m.UpdateSuccess = true
-		}
-		return m, nil
-
-	case msgFolderPicked:
-		if msg.cancelled {
-			return m, nil
-		}
-		if msg.err != nil {
-			m.State = StateChangeDir
-			m.DirInput.SetValue(m.OutputDir)
-			m.DirInput.Focus()
-			return m, textinput.Blink
-		}
-		if msg.path != "" {
-			_ = os.MkdirAll(msg.path, 0755)
-			m.OutputDir = msg.path
-			m.DirInput.SetValue(msg.path)
-			_ = util.SaveConfig(util.Config{DownloadDir: msg.path})
 		}
 		return m, nil
 	}
@@ -351,9 +322,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) triggerPickFolder() (Model, tea.Cmd) {
-	if util.HasNativePicker() {
-		return m, pickFolderNativeCmd()
-	}
 	m.State = StateChangeDir
 	m.DirInput.SetValue(m.OutputDir)
 	m.DirInput.Focus()
@@ -409,7 +377,7 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 	prevVal := m.Input.Value()
 	m.Input, cmd = m.Input.Update(msg)
 	if m.Input.Value() != prevVal {
-		m.DuplicateHistory = util.FindHistoryByURL(m.Input.Value())
+		m.DuplicateHistory = util.FindHistoryInEntries(m.History, m.Input.Value())
 	}
 	return m, cmd
 }
