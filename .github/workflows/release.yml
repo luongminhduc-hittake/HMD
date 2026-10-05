@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -24,23 +24,17 @@ jobs:
 
       - name: Build Linux Binary
         run: |
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ytdl-linux-amd64 .
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o hmd-linux-amd64 .
 
       - name: Build Windows Binary
         run: |
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ytdl-windows-amd64.exe .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o hmd-windows-amd64.exe .
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: "ytdl v1.1.0"
-          body: |
-            Phiên bản phát hành tự động cho commit ${{ github.sha }}
-            - Bỏ qua video bị ẩn / không khả dụng khi tải playlist.
-            - Tự động kiểm tra và cập nhật phiên bản mới trực tiếp trong giao diện TUI.
           draft: false
           prerelease: false
           files: |
-            ytdl-linux-amd64
-            ytdl-windows-amd64.exe
+            hmd-linux-amd64
+            hmd-windows-amd64.exe
