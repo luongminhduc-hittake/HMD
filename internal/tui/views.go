@@ -73,13 +73,13 @@ func (m Model) viewInputURL() string {
 
 	if m.AvailableUpdate != nil {
 		s.WriteString(StyleBadgeWarning.Render("BẢN MỚI") + " " +
-			StyleHighlight.Render(fmt.Sprintf("Có bản cập nhật mới %s! Nhấn 'u' để nâng cấp tự động.", m.AvailableUpdate.TagName)) + "\n\n")
+			StyleHighlight.Render(fmt.Sprintf("Có bản cập nhật mới %s! Nhấn Ctrl+U để nâng cấp tự động.", m.AvailableUpdate.TagName)) + "\n\n")
 	}
 
 	if m.DuplicateHistory != nil {
 		s.WriteString(StyleBadgeWarning.Render("ĐÃ TẢI TRƯỚC ĐÂY") + " " +
 			StyleHighlight.Render(fmt.Sprintf("Đã tải: %s (%s)", m.DuplicateHistory.Title, m.DuplicateHistory.Format)) + "\n" +
-			StyleHelp.Render(fmt.Sprintf("📂 Tệp: %s\n⏱ Ngày tải: %s (Nhấn 'o' để mở tệp ngay)", m.DuplicateHistory.FilePath, m.DuplicateHistory.CreatedAt.Format("15:04 02/01/2006"))) + "\n\n")
+			StyleHelp.Render(fmt.Sprintf("📂 Tệp: %s\n⏱ Ngày tải: %s (Nhấn Ctrl+P để mở tệp ngay)", m.DuplicateHistory.FilePath, m.DuplicateHistory.CreatedAt.Format("15:04 02/01/2006"))) + "\n\n")
 	}
 
 	s.WriteString(StyleHighlight.Render("Nhập liên kết video, âm thanh hoặc danh sách phát:") + "\n\n")
@@ -93,21 +93,21 @@ func (m Model) viewInputURL() string {
 	}
 
 	if m.OutputDir != "" {
-		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s  (Bấm 'c' để đổi)\n", m.OutputDir)))
+		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s  (Ctrl+O để đổi)\n", m.OutputDir)))
 	}
 
 	cookiesStatus := "TẮT"
 	if m.CookiesBrowser != "" {
 		cookiesStatus = strings.ToUpper(m.CookiesBrowser)
 	}
-	s.WriteString(StyleHelp.Render(fmt.Sprintf("🍪 Cookies trình duyệt: %s  (Bấm 'b' hoặc Ctrl+B để đổi)\n\n", StyleHighlight.Render(cookiesStatus))))
+	s.WriteString(StyleHelp.Render(fmt.Sprintf("🍪 Cookies trình duyệt: %s  (Ctrl+B để đổi)\n\n", StyleHighlight.Render(cookiesStatus))))
 
-	helpText := "Phím tắt: Enter (Tiếp tục) • b (Cookies) • h (Lịch sử) • c (Đổi thư mục) • Esc / Ctrl+C (Thoát)"
+	helpText := "Enter: Tiếp tục • Ctrl+B: Cookies • Ctrl+H: Lịch sử • Ctrl+O: Thư mục • Ctrl+Y: Cập nhật yt-dlp • Esc: Xóa / Thoát"
 	if m.DuplicateHistory != nil {
-		helpText = "Phím tắt: Enter (Tải lại) • o (Mở tệp cũ) • b (Cookies) • h (Lịch sử) • c (Đổi thư mục) • Esc (Thoát)"
+		helpText = "Enter: Tiếp tục • Ctrl+P: Mở tệp cũ • Ctrl+B: Cookies • Ctrl+H: Lịch sử • Ctrl+O: Thư mục • Ctrl+Y: Cập nhật yt-dlp • Esc: Xóa / Thoát"
 	}
 	if m.AvailableUpdate != nil {
-		helpText += " • u (Cập nhật app)"
+		helpText += " • Ctrl+U: Cập nhật app"
 	}
 	s.WriteString(StyleHelp.Render(helpText))
 
@@ -296,6 +296,7 @@ func (m Model) viewError() string {
 
 	actions := []string{
 		"🔁  Thử lại với link khác",
+		"⚡  Cập nhật yt-dlp mới nhất & thử lại",
 		"❌  Thoát chương trình",
 	}
 
@@ -307,7 +308,7 @@ func (m Model) viewError() string {
 		}
 	}
 
-	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓ hoặc 1/2 để chọn • Enter: Thực hiện"))
+	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓ hoặc 1/2/3 để chọn • Enter: Thực hiện"))
 	return StyleErrorCard.Render(s.String())
 }
 
@@ -317,8 +318,16 @@ func (m Model) viewUpdating() string {
 
 	if m.UpdateSuccess {
 		s.WriteString(StyleBadgeSuccess.Render("✔ CẬP NHẬT THÀNH CÔNG!") + "\n\n")
-		s.WriteString("Ứng dụng đã được nâng cấp lên phiên bản mới nhất thành công.\n\n")
-		s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để thoát. Vui lòng mở lại hmd để sử dụng."))
+		if m.UpdateStatus != "" {
+			s.WriteString(m.UpdateStatus + "\n\n")
+		} else {
+			s.WriteString("Ứng dụng đã được nâng cấp lên phiên bản mới nhất thành công.\n\n")
+		}
+		if m.UpdateStatus == "Đã cập nhật yt-dlp thành công!" {
+			s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để tiếp tục."))
+		} else {
+			s.WriteString(StyleHelp.Render("Nhấn Enter hoặc Esc để thoát. Vui lòng mở lại hmd để sử dụng."))
+		}
 		return StyleSuccessCard.Render(s.String())
 	}
 

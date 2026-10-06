@@ -63,6 +63,27 @@ type msgUpdateFinished struct {
 	err error
 }
 
+type updateProgressMsg = tea.Msg
+
+type msgYtDlpUpdateFinished struct {
+	path string
+	err  error
+}
+
+func updateYtDlpCmd(binDir string) (tea.Cmd, chan updateProgressMsg) {
+	_ = binDir
+	ch := make(chan updateProgressMsg, 50)
+	go func() {
+		newPath, err := deps.UpdateYtDlp(func(name string, dl, total int64, pct float64) {
+			ch <- msgUpdateProgress{downloaded: dl, total: total, percent: pct}
+		})
+		ch <- msgYtDlpUpdateFinished{path: newPath, err: err}
+		close(ch)
+	}()
+	return waitForChannel(ch), ch
+}
+
+
 
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
@@ -294,6 +315,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.UpdateSuccess = true
 		}
 		return m, nil
+
+	case msgYtDlpUpdateFinished:
+		if msg.err != nil {
+			m.UpdateError = msg.err
+		} else {
+			m.Paths.YtDlp = msg.path
+			m.UpdateSuccess = true
+			m.UpdateStatus = "Đã cập nhật yt-dlp thành công!"
+		}
+		return m, nil
 	}
 
 	// State-specific interactions
@@ -349,7 +380,7 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "u", "U":
+		case "ctrl+u":
 			if m.AvailableUpdate != nil {
 				m.State = StateUpdating
 				m.UpdateStatus = fmt.Sprintf("Đang chuẩn bị tải bản cập nhật %s...", m.AvailableUpdate.TagName)
@@ -366,28 +397,24 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 			cfg.CookiesBrowser = m.CookiesBrowser
 			_ = util.SaveConfig(cfg)
 			return m, nil
-		case "b", "B":
-			if m.Input.Value() == "" {
-				m.CookiesBrowser = util.CycleBrowser(m.CookiesBrowser)
-				cfg := util.LoadConfig()
-				cfg.CookiesBrowser = m.CookiesBrowser
-				_ = util.SaveConfig(cfg)
-				return m, nil
-			}
 		case "ctrl+o":
 			return m.triggerPickFolder()
-		case "c", "C":
-			if m.Input.Value() == "" {
-				return m.triggerPickFolder()
-			}
-		case "h", "H":
-			if m.Input.Value() == "" {
-				m.History = util.LoadHistory()
-				m.HistoryIndex = 0
-				m.State = StateHistory
-				return m, nil
-			}
-		case "o", "O":
+		case "ctrl+h":
+			m.History = util.LoadHistory()
+			m.HistoryIndex = 0
+			m.State = StateHistory
+			return m, nil
+		case "ctrl+y":
+			m.State = StateUpdating
+			m.UpdateStatus = "Đang tải bản cập nhật yt-dlp mới nhất..."
+			m.UpdateProgress = 0
+			m.UpdateError = nil
+			m.UpdateSuccess = false
+			binDir, _ := util.GetBinDir()
+			var upCmd tea.Cmd
+			upCmd, m.ProgressChan = updateYtDlpCmd(binDir)
+			return m, upCmd
+		case "ctrl+p":
 			if m.DuplicateHistory != nil && m.DuplicateHistory.FilePath != "" {
 				_ = util.OpenFolder(m.DuplicateHistory.FilePath)
 				return m, nil
@@ -406,6 +433,11 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 			m.State = StateFetchingInfo
 			return m, fetchInfoCmd(m.Paths.YtDlp, val, m.CookiesBrowser)
 		case "esc":
+			if m.Input.Value() != "" {
+				m.Input.SetValue("")
+				m.DuplicateHistory = nil
+				return m, nil
+			}
 			return m, tea.Quit
 		}
 	}
@@ -634,20 +666,32 @@ func (m Model) updateError(msg tea.Msg) (Model, tea.Cmd) {
 				m.ActionIndex--
 			}
 		case "down", "j":
-			if m.ActionIndex < 1 {
+			if m.ActionIndex < 2 {
 				m.ActionIndex++
 			}
 		case "1":
 			m.ActionIndex = 0
 		case "2":
 			m.ActionIndex = 1
+		case "3":
+			m.ActionIndex = 2
 		case "enter":
 			switch m.ActionIndex {
-			case 0: // Thử lại
+			case 0: // Thử lại với link khác
 				m.State = StateInputURL
 				m.Input.Focus()
 				return m, nil
-			case 1: // Thoát
+			case 1: // Cập nhật yt-dlp mới nhất & thử lại
+				m.State = StateUpdating
+				m.UpdateStatus = "Đang tải bản cập nhật yt-dlp mới nhất..."
+				m.UpdateProgress = 0
+				m.UpdateError = nil
+				m.UpdateSuccess = false
+				binDir, _ := util.GetBinDir()
+				var upCmd tea.Cmd
+				upCmd, m.ProgressChan = updateYtDlpCmd(binDir)
+				return m, upCmd
+			case 2: // Thoát chương trình
 				return m, tea.Quit
 			}
 		case "esc":
@@ -663,6 +707,11 @@ func (m Model) updateSelfUpdating(msg tea.Msg) (Model, tea.Cmd) {
 		switch msg.String() {
 		case "enter", "esc", "q":
 			if m.UpdateSuccess {
+				if m.UpdateStatus == "Đã cập nhật yt-dlp thành công!" {
+					m.State = StateInputURL
+					m.Input.Focus()
+					return m, nil
+				}
 				return m, tea.Quit
 			}
 			if m.UpdateError != nil {
