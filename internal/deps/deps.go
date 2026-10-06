@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"hmd/internal/util"
 )
@@ -189,7 +190,11 @@ func EnsureDependencies(cb ProgressCallback) (BinaryPaths, error) {
 }
 
 func downloadToFile(url, filePath, itemName string, cb ProgressCallback) error {
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err

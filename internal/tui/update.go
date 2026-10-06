@@ -70,8 +70,7 @@ type msgYtDlpUpdateFinished struct {
 	err  error
 }
 
-func updateYtDlpCmd(binDir string) (tea.Cmd, chan updateProgressMsg) {
-	_ = binDir
+func updateYtDlpCmd() (tea.Cmd, chan updateProgressMsg) {
 	ch := make(chan updateProgressMsg, 50)
 	go func() {
 		newPath, err := deps.UpdateYtDlp(func(name string, dl, total int64, pct float64) {
@@ -410,9 +409,8 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 			m.UpdateProgress = 0
 			m.UpdateError = nil
 			m.UpdateSuccess = false
-			binDir, _ := util.GetBinDir()
 			var upCmd tea.Cmd
-			upCmd, m.ProgressChan = updateYtDlpCmd(binDir)
+			upCmd, m.ProgressChan = updateYtDlpCmd()
 			return m, upCmd
 		case "ctrl+p":
 			if m.DuplicateHistory != nil && m.DuplicateHistory.FilePath != "" {
@@ -687,9 +685,8 @@ func (m Model) updateError(msg tea.Msg) (Model, tea.Cmd) {
 				m.UpdateProgress = 0
 				m.UpdateError = nil
 				m.UpdateSuccess = false
-				binDir, _ := util.GetBinDir()
 				var upCmd tea.Cmd
-				upCmd, m.ProgressChan = updateYtDlpCmd(binDir)
+				upCmd, m.ProgressChan = updateYtDlpCmd()
 				return m, upCmd
 			case 2: // Thoát chương trình
 				return m, tea.Quit
