@@ -65,3 +65,10 @@ Tải bản mới nhất tại [GitHub Releases](https://github.com/luongminhduc
 go build -ldflags="-s -w" -o hmd .                                # Linux
 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o hmd.exe .   # Windows
 ```
+
+---
+
+## 📄 Giấy phép (License)
+
+Dự án được phân phối dưới giấy phép [MIT License](LICENSE).
+
