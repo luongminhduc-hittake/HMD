@@ -14,7 +14,7 @@
 - **Cắt đoạn theo thời gian (Trim)**: Nhấn `t` ở bước chọn định dạng để cắt trích đoạn (VD: `01:20-03:45`), tải nhạc chuông hay highlight siêu nhanh.
 - **Phụ đề mềm đa ngôn ngữ**: Nhấn `s` ở bước chọn định dạng để bật/tắt tự động nhúng phụ đề (`vi, en`).
 - **Lịch sử tải & Cảnh báo trùng lặp**: Nhấn `h` ở màn hình chính để duyệt 100 lượt tải gần nhất; tự động cảnh báo khi dán lại link cũ và bấm `o` để mở tệp ngay.
-- **Tích hợp sâu trên Windows**: Nhấp đúp chạy lần đầu sẽ tự động cài vào máy, tạo biểu tượng Desktop và Start Menu; tự động dọn sạch file `.old` sau khi cập nhật.
+- **Tích hợp sâu trên Windows**: Nhấp đúp chạy lần đầu sẽ tự động cài vào máy, tạo biểu tượng Desktop và Start Menu.
 - **Tự động cập nhật**: Nhấn `u` trên giao diện khi có bản mới để tự nâng cấp trực tiếp.
 - **9 Định dạng tối ưu**: Best Video, 1080p, 720p, MP3 (320kbps kèm bìa), M4A (gốc AAC), WAV (Lossless PCM), FLAC (Lossless), OPUS (Chất lượng cao), Thumbnail (Ảnh bìa JPG).
 - **Tùy chỉnh thư mục lưu**: Nhấn `c` trên giao diện để chọn thư mục lưu qua hộp thoại native hoặc nhập đường dẫn (mặc định: `Downloads/hittakeMD`).
