@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*"
+  schedule:
+    - cron: "0 0 7 10 *" # 00:00 UTC = 07:00 AM UTC+7 (07/10/2026)
   workflow_dispatch:
 
 permissions:
@@ -30,9 +32,21 @@ jobs:
         run: |
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o hmd-windows-amd64.exe .
 
+      - name: Resolve Version Tag
+        id: tag
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(grep 'CurrentVersion = "' internal/updater/updater.go | sed -E 's/.*"([^"]+)".*/\1/')
+            echo "tag_name=v${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: hittakeMD ${{ steps.tag.outputs.tag_name }}
           draft: false
           prerelease: false
           files: |
