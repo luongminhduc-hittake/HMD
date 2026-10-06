@@ -50,6 +50,12 @@ func CycleBrowser(current string) string {
 
 // GetConfigFilePath returns the path to ~/.config/hmd/config.json.
 func GetConfigFilePath() (string, error) {
+	if env := os.Getenv("HMD_CONFIG_DIR"); env != "" {
+		if err := os.MkdirAll(env, 0755); err != nil {
+			return "", err
+		}
+		return filepath.Join(env, "config.json"), nil
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		home, hErr := os.UserHomeDir()

@@ -11,6 +11,7 @@ import (
 )
 
 func TestModelTrimAndSubtitles(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
 	m := InitialModel("", "")
 	m.State = StateSelectPreset
 	m.MediaInfo = &downloader.MediaInfo{
@@ -58,6 +59,7 @@ func TestModelTrimAndSubtitles(t *testing.T) {
 }
 
 func TestModelHistoryView(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
 	m := InitialModel("", "")
 	m.State = StateHistory
 	m.History = []util.HistoryEntry{
@@ -78,6 +80,7 @@ func TestModelHistoryView(t *testing.T) {
 }
 
 func TestModelDuplicateWarning(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
 	m := InitialModel("", "")
 	m.State = StateInputURL
 	m.DuplicateHistory = &util.HistoryEntry{
@@ -95,9 +98,13 @@ func TestModelDuplicateWarning(t *testing.T) {
 	if !strings.Contains(view, "Old Video") {
 		t.Errorf("expected duplicate title in view, got: %s", view)
 	}
+	if !strings.Contains(view, "Ctrl+P: Mở tệp cũ") {
+		t.Errorf("expected view to show Ctrl+P shortcut hint, got: %s", view)
+	}
 }
 
 func TestModelPresetsSelection(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
 	m := InitialModel("", "")
 	m.State = StateSelectPreset
 
@@ -123,12 +130,13 @@ func TestModelPresetsSelection(t *testing.T) {
 }
 
 func TestModelCookiesToggle(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
 	m := InitialModel("", "")
 	m.State = StateInputURL
-	m.Input.SetValue("") // empty input allows 'b' toggle
+	m.Input.SetValue("")
 
-	// Press 'b' to cycle to chrome
-	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	// Press ctrl+b to cycle to chrome
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlB})
 	model2 := m2.(Model)
 	if model2.CookiesBrowser != "chrome" {
 		t.Errorf("expected cookies chrome, got %s", model2.CookiesBrowser)
@@ -144,3 +152,120 @@ func TestModelCookiesToggle(t *testing.T) {
 		t.Errorf("expected cookies firefox, got %s", model3.CookiesBrowser)
 	}
 }
+
+func TestModelEscClearInput(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateInputURL
+	m.Input.SetValue("https://youtube.com/watch?v=abc")
+	m.DuplicateHistory = &util.HistoryEntry{URL: "https://youtube.com/watch?v=abc"}
+
+	// First Esc: clears input and duplicate history
+	m2, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model2 := m2.(Model)
+	if model2.Input.Value() != "" {
+		t.Errorf("expected input to be cleared, got %q", model2.Input.Value())
+	}
+	if model2.DuplicateHistory != nil {
+		t.Errorf("expected DuplicateHistory to be nil after esc")
+	}
+	if cmd != nil {
+		t.Errorf("expected nil cmd on input clear, got %v", cmd)
+	}
+
+	// Second Esc when already empty: quits
+	_, cmd2 := model2.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if cmd2 == nil {
+		t.Errorf("expected quit cmd on empty input esc, got nil")
+	}
+}
+
+func TestModelErrorActions(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateError
+	m.ErrorMessage = "Test Error"
+	m.ActionIndex = 0
+
+	view := m.View()
+	if !strings.Contains(view, "Thử lại với link khác") ||
+		!strings.Contains(view, "Cập nhật yt-dlp mới nhất & thử lại") ||
+		!strings.Contains(view, "Thoát chương trình") {
+		t.Errorf("expected viewError to render 3 actions, got: %s", view)
+	}
+
+	// Navigate down to item 1
+	m1, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	model1 := m1.(Model)
+	if model1.ActionIndex != 1 {
+		t.Errorf("expected ActionIndex 1, got %d", model1.ActionIndex)
+	}
+
+	// Navigate down to item 2
+	m2, _ := model1.Update(tea.KeyMsg{Type: tea.KeyDown})
+	model2 := m2.(Model)
+	if model2.ActionIndex != 2 {
+		t.Errorf("expected ActionIndex 2, got %d", model2.ActionIndex)
+	}
+
+	// Cannot navigate beyond item 2
+	m2b, _ := model2.Update(tea.KeyMsg{Type: tea.KeyDown})
+	model2b := m2b.(Model)
+	if model2b.ActionIndex != 2 {
+		t.Errorf("expected ActionIndex to stay 2, got %d", model2b.ActionIndex)
+	}
+
+	// Select action 1 (Update yt-dlp) via Enter
+	m3, cmd3 := model1.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model3 := m3.(Model)
+	if model3.State != StateUpdating {
+		t.Errorf("expected StateUpdating after selecting action 1, got %v", model3.State)
+	}
+	if cmd3 == nil {
+		t.Errorf("expected non-nil cmd for updating yt-dlp")
+	}
+
+	// Select action 0 (Retry) via Enter
+	m0, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model0 := m0.(Model)
+	if model0.State != StateInputURL {
+		t.Errorf("expected StateInputURL after selecting action 0, got %v", model0.State)
+	}
+}
+
+func TestModelCtrlYUpdate(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateInputURL
+
+	m2, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlY})
+	model2 := m2.(Model)
+	if model2.State != StateUpdating {
+		t.Errorf("expected StateUpdating on Ctrl+Y, got %v", model2.State)
+	}
+	if cmd == nil {
+		t.Errorf("expected update cmd on Ctrl+Y, got nil")
+	}
+}
+
+func TestModelNoBareLetterShortcuts(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateInputURL
+	m.Input.SetValue("")
+
+	// Pressing 'b', 'c', 'h', 'u', 'o' should NOT trigger shortcuts; should type into input
+	for _, r := range []rune{'b', 'c', 'h', 'u', 'o'} {
+		mRes, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = mRes.(Model)
+		if m.State != StateInputURL {
+			t.Errorf("expected StateInputURL to remain for key %c, got %v", r, m.State)
+		}
+	}
+
+	if m.Input.Value() != "bchuo" {
+		t.Errorf("expected input to contain 'bchuo', got %q", m.Input.Value())
+	}
+}
+
+

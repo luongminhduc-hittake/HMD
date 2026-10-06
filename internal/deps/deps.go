@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"hmd/internal/util"
 )
@@ -31,6 +32,18 @@ func GetBinaryNames() (string, string) {
 	return "yt-dlp", "ffmpeg"
 }
 
+// GetYtDlpDownloadURL returns the download URL for yt-dlp according to the runtime OS.
+func GetYtDlpDownloadURL() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+	case "darwin":
+		return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+	default:
+		return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+	}
+}
+
 // FindBinaries locates yt-dlp and ffmpeg either in PATH or in the app's bin directory.
 func FindBinaries() (BinaryPaths, []string) {
 	var paths BinaryPaths
@@ -39,26 +52,32 @@ func FindBinaries() (BinaryPaths, []string) {
 	ytName, ffName := GetBinaryNames()
 	binDir, _ := util.GetBinDir()
 
-	// 1. Find yt-dlp
-	if p, err := exec.LookPath(ytName); err == nil {
-		paths.YtDlp = p
-	} else if binDir != "" {
+	// 1. Find yt-dlp: check binDir candidate first before exec.LookPath
+	if binDir != "" {
 		candidate := filepath.Join(binDir, ytName)
 		if fileExists(candidate) {
 			paths.YtDlp = candidate
 		}
 	}
 	if paths.YtDlp == "" {
+		if p, err := exec.LookPath(ytName); err == nil {
+			paths.YtDlp = p
+		}
+	}
+	if paths.YtDlp == "" {
 		missing = append(missing, "yt-dlp")
 	}
 
-	// 2. Find ffmpeg
-	if p, err := exec.LookPath(ffName); err == nil {
-		paths.FFmpeg = p
-	} else if binDir != "" {
+	// 2. Find ffmpeg: check binDir candidate first before exec.LookPath
+	if binDir != "" {
 		candidate := filepath.Join(binDir, ffName)
 		if fileExists(candidate) {
 			paths.FFmpeg = candidate
+		}
+	}
+	if paths.FFmpeg == "" {
+		if p, err := exec.LookPath(ffName); err == nil {
+			paths.FFmpeg = p
 		}
 	}
 	if paths.FFmpeg == "" {
@@ -71,6 +90,55 @@ func FindBinaries() (BinaryPaths, []string) {
 func fileExists(p string) bool {
 	info, err := os.Stat(p)
 	return err == nil && !info.IsDir()
+}
+
+// UpdateYtDlp downloads the latest yt-dlp binary to binDir, atomically swaps it into place, and returns the path.
+func UpdateYtDlp(cb ProgressCallback) (string, error) {
+	binDir, err := util.GetBinDir()
+	if err != nil {
+		return "", fmt.Errorf("không thể tạo thư mục lưu công cụ: %w", err)
+	}
+
+	ytName, _ := GetBinaryNames()
+	destPath := filepath.Join(binDir, ytName)
+	tmpPath := filepath.Join(binDir, ytName+".tmp")
+
+	downloadURL := GetYtDlpDownloadURL()
+	if err := downloadToFile(downloadURL, tmpPath, "yt-dlp", cb); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("lỗi khi tải yt-dlp: %w", err)
+	}
+
+	if err := os.Chmod(tmpPath, 0755); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("lỗi cấp quyền thực thi cho yt-dlp: %w", err)
+	}
+
+	if runtime.GOOS == "windows" {
+		oldPath := destPath + ".old"
+		_ = os.Remove(oldPath)
+		if fileExists(destPath) {
+			if err := os.Rename(destPath, oldPath); err != nil {
+				_ = os.Remove(tmpPath)
+				return "", fmt.Errorf("lỗi hoán đổi file yt-dlp trên Windows: %w", err)
+			}
+		}
+		if err := os.Rename(tmpPath, destPath); err != nil {
+			if fileExists(oldPath) {
+				_ = os.Rename(oldPath, destPath)
+			}
+			_ = os.Remove(tmpPath)
+			return "", fmt.Errorf("lỗi cài đặt file yt-dlp mới: %w", err)
+		}
+	} else {
+		if err := os.Rename(tmpPath, destPath); err != nil {
+			_ = os.Remove(tmpPath)
+			return "", fmt.Errorf("lỗi thay thế file yt-dlp: %w", err)
+		}
+	}
+
+	_ = os.Chmod(destPath, 0755)
+	return destPath, nil
 }
 
 // EnsureDependencies checks and downloads any missing tools (yt-dlp, ffmpeg).
@@ -90,16 +158,7 @@ func EnsureDependencies(cb ProgressCallback) (BinaryPaths, error) {
 	for _, item := range missing {
 		switch item {
 		case "yt-dlp":
-			var downloadURL string
-			switch runtime.GOOS {
-			case "windows":
-				downloadURL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
-			case "darwin":
-				downloadURL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
-			default:
-				downloadURL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
-			}
-
+			downloadURL := GetYtDlpDownloadURL()
 			destPath := filepath.Join(binDir, ytName)
 			if err := downloadFile(downloadURL, destPath, "yt-dlp", cb); err != nil {
 				return paths, fmt.Errorf("lỗi khi tải yt-dlp: %w", err)
@@ -130,8 +189,12 @@ func EnsureDependencies(cb ProgressCallback) (BinaryPaths, error) {
 	return paths, nil
 }
 
-func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
-	client := &http.Client{}
+func downloadToFile(url, filePath, itemName string, cb ProgressCallback) error {
+	client := &http.Client{
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -149,15 +212,11 @@ func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
 	}
 
 	totalSize := resp.ContentLength
-	tmpFile := destPath + ".tmp"
-	out, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	out, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		out.Close()
-		_ = os.Remove(tmpFile)
-	}()
+	defer out.Close()
 
 	var downloaded int64
 	buf := make([]byte, 64*1024)
@@ -186,8 +245,17 @@ func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
 		}
 	}
 
-	out.Close()
+	return nil
+}
+
+func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
+	tmpFile := destPath + ".tmp"
+	if err := downloadToFile(url, tmpFile, itemName, cb); err != nil {
+		_ = os.Remove(tmpFile)
+		return err
+	}
 	if err := os.Rename(tmpFile, destPath); err != nil {
+		_ = os.Remove(tmpFile)
 		return err
 	}
 	return nil

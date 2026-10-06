@@ -1,6 +1,7 @@
 package deps
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -19,5 +20,15 @@ func TestFindBinaries(t *testing.T) {
 	}
 	if paths.FFmpeg == "" {
 		t.Logf("Notice: ffmpeg not found in PATH or binDir")
+	}
+}
+
+func TestGetYtDlpDownloadURL(t *testing.T) {
+	url := GetYtDlpDownloadURL()
+	if url == "" {
+		t.Fatalf("GetYtDlpDownloadURL returned empty URL")
+	}
+	if !strings.HasPrefix(url, "https://github.com/yt-dlp/yt-dlp/releases/latest/download/") {
+		t.Errorf("GetYtDlpDownloadURL returned unexpected URL prefix: %s", url)
 	}
 }

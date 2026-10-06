@@ -77,3 +77,18 @@ func TestBrowserCycleAndValidation(t *testing.T) {
 		t.Errorf("expected off (\"\"), got %s", b)
 	}
 }
+
+func TestHMDConfigDirEnv(t *testing.T) {
+	customDir := t.TempDir()
+	t.Setenv("HMD_CONFIG_DIR", customDir)
+
+	path, err := GetConfigFilePath()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := filepath.Join(customDir, "config.json")
+	if path != expected {
+		t.Errorf("expected path %q, got %q", expected, path)
+	}
+}
+
