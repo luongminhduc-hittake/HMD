@@ -89,14 +89,25 @@ type Model struct {
 	TrimRange       string
 	TrimInput       textinput.Model
 	EnableSubtitles bool
+
+	// Cookies & Concurrency options
+	CookiesBrowser      string
+	ConcurrentFragments int
+	MaxRetries          int
+	FragmentRetries     int
 }
 
 // InitialModel constructs the default model state.
-func InitialModel(customOutputDir, initialURL string) Model {
+func InitialModel(customOutputDir, initialURL string, customCookies ...string) Model {
 	cfg := util.LoadConfig()
 	effectiveDir := customOutputDir
 	if effectiveDir == "" {
 		effectiveDir = cfg.DownloadDir
+	}
+
+	cookies := cfg.CookiesBrowser
+	if len(customCookies) > 0 && customCookies[0] != "" {
+		cookies = customCookies[0]
 	}
 
 	hist := util.LoadHistory()
@@ -132,17 +143,21 @@ func InitialModel(customOutputDir, initialURL string) Model {
 	)
 
 	return Model{
-		State:            StateCheckDeps,
-		OutputDir:        effectiveDir,
-		Input:            ti,
-		DirInput:         di,
-		TrimInput:        tri,
-		Spinner:          s,
-		ProgressModel:    prog,
-		PresetIndex:      0,
-		PlaylistIndex:    0,
-		ActionIndex:      0,
-		History:          hist,
-		DuplicateHistory: dup,
+		State:               StateCheckDeps,
+		OutputDir:           effectiveDir,
+		Input:               ti,
+		DirInput:            di,
+		TrimInput:           tri,
+		Spinner:             s,
+		ProgressModel:       prog,
+		PresetIndex:         0,
+		PlaylistIndex:       0,
+		ActionIndex:         0,
+		History:             hist,
+		DuplicateHistory:    dup,
+		CookiesBrowser:      cookies,
+		ConcurrentFragments: cfg.ConcurrentFragments,
+		MaxRetries:          cfg.MaxRetries,
+		FragmentRetries:     cfg.FragmentRetries,
 	}
 }

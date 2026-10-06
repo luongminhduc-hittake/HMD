@@ -9,8 +9,10 @@ const (
 	Preset720p      FormatPreset = "720p"
 	PresetAudioMP3  FormatPreset = "mp3"
 	PresetAudioM4A  FormatPreset = "m4a"
+	PresetAudioWAV  FormatPreset = "wav"
 	PresetAudioFLAC FormatPreset = "flac"
 	PresetAudioOPUS FormatPreset = "opus"
+	PresetThumbnail FormatPreset = "thumb"
 )
 
 // PresetOption holds UI presentation metadata for presets.
@@ -48,6 +50,11 @@ var AvailablePresets = []PresetOption{
 		Description: "Tải stream AAC trực tiếp siêu tốc, không cần convert",
 	},
 	{
+		ID:          PresetAudioWAV,
+		Title:       "Audio WAV (Lossless)",
+		Description: "Âm thanh nguyên bản phòng thu PCM, không nén (Dung lượng lớn)",
+	},
+	{
 		ID:          PresetAudioFLAC,
 		Title:       "Audio FLAC (Lossless)",
 		Description: "Âm thanh nguyên bản không nén chất lượng phòng thu, nhúng bìa & ID3",
@@ -56,6 +63,11 @@ var AvailablePresets = []PresetOption{
 		ID:          PresetAudioOPUS,
 		Title:       "Audio OPUS (Chất lượng cao)",
 		Description: "Chuẩn nén thế hệ mới, tối ưu băng thông & giữ nguyên chi tiết âm thanh",
+	},
+	{
+		ID:          PresetThumbnail,
+		Title:       "Thumbnail (Ảnh bìa)",
+		Description: "Tải riêng ảnh bìa sắc nét (JPG), không tải video",
 	},
 }
 

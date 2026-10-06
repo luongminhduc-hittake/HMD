@@ -96,3 +96,51 @@ func TestModelDuplicateWarning(t *testing.T) {
 		t.Errorf("expected duplicate title in view, got: %s", view)
 	}
 }
+
+func TestModelPresetsSelection(t *testing.T) {
+	m := InitialModel("", "")
+	m.State = StateSelectPreset
+
+	// Select preset 6 (WAV)
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'6'}})
+	model2 := m2.(Model)
+	if model2.PresetIndex != 5 {
+		t.Errorf("expected PresetIndex 5 for key '6', got %d", model2.PresetIndex)
+	}
+	if downloader.AvailablePresets[model2.PresetIndex].ID != downloader.PresetAudioWAV {
+		t.Errorf("expected PresetAudioWAV, got %s", downloader.AvailablePresets[model2.PresetIndex].ID)
+	}
+
+	// Select preset 9 (Thumbnail)
+	m3, _ := model2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'9'}})
+	model3 := m3.(Model)
+	if model3.PresetIndex != 8 {
+		t.Errorf("expected PresetIndex 8 for key '9', got %d", model3.PresetIndex)
+	}
+	if downloader.AvailablePresets[model3.PresetIndex].ID != downloader.PresetThumbnail {
+		t.Errorf("expected PresetThumbnail, got %s", downloader.AvailablePresets[model3.PresetIndex].ID)
+	}
+}
+
+func TestModelCookiesToggle(t *testing.T) {
+	m := InitialModel("", "")
+	m.State = StateInputURL
+	m.Input.SetValue("") // empty input allows 'b' toggle
+
+	// Press 'b' to cycle to chrome
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	model2 := m2.(Model)
+	if model2.CookiesBrowser != "chrome" {
+		t.Errorf("expected cookies chrome, got %s", model2.CookiesBrowser)
+	}
+	if !strings.Contains(model2.View(), "CHROME") {
+		t.Errorf("expected view to contain CHROME cookies badge, got: %s", model2.View())
+	}
+
+	// Press ctrl+b to cycle to firefox
+	m3, _ := model2.Update(tea.KeyMsg{Type: tea.KeyCtrlB})
+	model3 := m3.(Model)
+	if model3.CookiesBrowser != "firefox" {
+		t.Errorf("expected cookies firefox, got %s", model3.CookiesBrowser)
+	}
+}

@@ -104,9 +104,9 @@ func initDepsCmd() tea.Cmd {
 	}
 }
 
-func fetchInfoCmd(ytdlpPath, url string) tea.Cmd {
+func fetchInfoCmd(ytdlpPath, url, cookiesBrowser string) tea.Cmd {
 	return func() tea.Msg {
-		info, err := downloader.FetchInfo(ytdlpPath, url)
+		info, err := downloader.FetchInfo(ytdlpPath, url, cookiesBrowser)
 		return msgInfoFetched{info: info, err: err}
 	}
 }
@@ -124,14 +124,18 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 	}
 
 	opts := downloader.DownloadOptions{
-		YtDlpPath:        m.Paths.YtDlp,
-		FFmpegPath:       m.Paths.FFmpeg,
-		URL:              rawURL,
-		OutputDir:        outDir,
-		Preset:           preset,
-		DownloadPlaylist: m.DownloadPlaylist,
-		TrimRange:        m.TrimRange,
-		EnableSubtitles:  m.EnableSubtitles,
+		YtDlpPath:           m.Paths.YtDlp,
+		FFmpegPath:          m.Paths.FFmpeg,
+		URL:                 rawURL,
+		OutputDir:           outDir,
+		Preset:              preset,
+		DownloadPlaylist:    m.DownloadPlaylist,
+		TrimRange:           m.TrimRange,
+		EnableSubtitles:     m.EnableSubtitles,
+		CookiesBrowser:      m.CookiesBrowser,
+		ConcurrentFragments: m.ConcurrentFragments,
+		MaxRetries:          m.MaxRetries,
+		FragmentRetries:     m.FragmentRetries,
 		OnProgress: func(pu downloader.ProgressUpdate) {
 			select {
 			case <-ctx.Done():
@@ -356,6 +360,20 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 				upCmd, m.ProgressChan = startSelfUpdateCmd(m.AvailableUpdate.DownloadURL)
 				return m, upCmd
 			}
+		case "ctrl+b":
+			m.CookiesBrowser = util.CycleBrowser(m.CookiesBrowser)
+			cfg := util.LoadConfig()
+			cfg.CookiesBrowser = m.CookiesBrowser
+			_ = util.SaveConfig(cfg)
+			return m, nil
+		case "b", "B":
+			if m.Input.Value() == "" {
+				m.CookiesBrowser = util.CycleBrowser(m.CookiesBrowser)
+				cfg := util.LoadConfig()
+				cfg.CookiesBrowser = m.CookiesBrowser
+				_ = util.SaveConfig(cfg)
+				return m, nil
+			}
 		case "ctrl+o":
 			return m.triggerPickFolder()
 		case "c", "C":
@@ -386,7 +404,7 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 			m.State = StateFetchingInfo
-			return m, fetchInfoCmd(m.Paths.YtDlp, val)
+			return m, fetchInfoCmd(m.Paths.YtDlp, val, m.CookiesBrowser)
 		case "esc":
 			return m, tea.Quit
 		}
@@ -410,7 +428,13 @@ func (m Model) updateChangeDir(msg tea.Msg) (Model, tea.Cmd) {
 			if val != "" {
 				_ = os.MkdirAll(val, 0755)
 				m.OutputDir = val
-				_ = util.SaveConfig(util.Config{DownloadDir: val})
+				_ = util.SaveConfig(util.Config{
+					DownloadDir:         val,
+					CookiesBrowser:      m.CookiesBrowser,
+					ConcurrentFragments: m.ConcurrentFragments,
+					MaxRetries:          m.MaxRetries,
+					FragmentRetries:     m.FragmentRetries,
+				})
 			}
 			m.State = StateInputURL
 			m.Input.Focus()
@@ -468,7 +492,7 @@ func (m Model) updateSelectPreset(msg tea.Msg) (Model, tea.Cmd) {
 			if m.PresetIndex < len(downloader.AvailablePresets)-1 {
 				m.PresetIndex++
 			}
-		case "1", "2", "3", "4", "5", "6", "7":
+		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 			idx := int(msg.String()[0] - '1')
 			if idx >= 0 && idx < len(downloader.AvailablePresets) {
 				m.PresetIndex = idx

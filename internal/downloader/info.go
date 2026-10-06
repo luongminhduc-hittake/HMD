@@ -6,13 +6,14 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
+
+	"hmd/internal/util"
 )
 
 // FetchInfo retrieves metadata for a given YouTube URL without downloading media.
-func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
+func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 
@@ -29,9 +30,17 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 		}
 	}
 
-	var args []string
+	args := []string{"--no-config"}
+	var cookies string
+	if len(cookiesBrowser) > 0 {
+		cookies = strings.TrimSpace(cookiesBrowser[0])
+	}
+	if cookies != "" && util.IsAllowedBrowser(cookies) {
+		args = append(args, "--cookies-from-browser", cookies)
+	}
+
 	if isPurePlaylist {
-		args = []string{
+		args = append(args,
 			"--flat-playlist",
 			"--no-warnings",
 			"--ignore-errors",
@@ -40,9 +49,9 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 			"--print", "uploader:%(uploader|channel)s",
 			"--",
 			rawURL,
-		}
+		)
 	} else {
-		args = []string{
+		args = append(args,
 			"--simulate",
 			"--no-warnings",
 			"--ignore-errors",
@@ -52,10 +61,10 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 			"--print", "uploader:%(uploader)s",
 			"--",
 			rawURL,
-		}
+		)
 	}
 
-	cmd := exec.CommandContext(ctx, ytdlpPath, args...)
+	cmd := execCommandContext(ctx, ytdlpPath, args...)
 	prepareCommand(cmd)
 
 	var stdout, stderr bytes.Buffer
@@ -65,6 +74,9 @@ func FetchInfo(ytdlpPath, rawURL string) (*MediaInfo, error) {
 	err := cmd.Run()
 	if err != nil {
 		errStr := strings.TrimSpace(stderr.String())
+		if strings.Contains(errStr, "database is locked") {
+			return nil, fmt.Errorf("Trình duyệt đang mở và khóa file cookies. Cậu chủ vui lòng đóng trình duyệt rồi thử lại.")
+		}
 		if errStr != "" {
 			return nil, fmt.Errorf("%s", errStr)
 		}

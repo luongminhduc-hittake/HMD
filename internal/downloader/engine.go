@@ -16,21 +16,26 @@ import (
 
 // DownloadOptions defines configuration for the download job.
 type DownloadOptions struct {
-	YtDlpPath        string
-	FFmpegPath       string
-	URL              string
-	OutputDir        string
-	Preset           FormatPreset
-	DownloadPlaylist bool
-	TrimRange        string
-	EnableSubtitles  bool
-	OnProgress       func(ProgressUpdate)
-	OnStatus         func(string)
+	YtDlpPath           string
+	FFmpegPath          string
+	URL                 string
+	OutputDir           string
+	Preset              FormatPreset
+	DownloadPlaylist    bool
+	TrimRange           string
+	EnableSubtitles     bool
+	CookiesBrowser      string
+	ConcurrentFragments int
+	MaxRetries          int
+	FragmentRetries     int
+	OnProgress          func(ProgressUpdate)
+	OnStatus            func(string)
 }
 
 var (
-	playlistItemRegex = regexp.MustCompile(`\[download\]\s+Downloading\s+item\s+(\d+)\s+of\s+(\d+)`)
-	errorItemRegex    = regexp.MustCompile(`ERROR:\s*\[[^\]]+\]\s*([^:\s]+):`)
+	execCommandContext = exec.CommandContext
+	playlistItemRegex  = regexp.MustCompile(`\[download\]\s+Downloading\s+item\s+(\d+)\s+of\s+(\d+)`)
+	errorItemRegex     = regexp.MustCompile(`ERROR:\s*\[[^\]]+\]\s*([^:\s]+):`)
 )
 
 // BuildDownloadArgs constructs the CLI arguments for yt-dlp.
@@ -39,15 +44,51 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 	if outputDir == "" {
 		outputDir = util.GetDefaultDownloadDir()
 	}
+	outputDir = filepath.Clean(outputDir)
+
+	cf := opts.ConcurrentFragments
+	if cf <= 0 {
+		cf = 4
+	}
+	if cf > 8 {
+		cf = 8
+	}
+
+	mr := opts.MaxRetries
+	if mr <= 0 {
+		mr = 3
+	}
+	if mr > 10 {
+		mr = 10
+	}
+
+	fr := opts.FragmentRetries
+	if fr <= 0 {
+		fr = 10
+	}
+	if fr > 10 {
+		fr = 10
+	}
 
 	args := []string{
 		"--newline",
 		"--no-mtime",
+		"--no-config",
+		"--windows-filenames",
 		"--progress",
 		"--no-quiet",
 		"--progress-template", "DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._total_bytes_str|progress._total_bytes_estimate_str)s",
 		"--print", "after_move:FINAL_PATH:%(filepath)s",
+		"--concurrent-fragments", strconv.Itoa(cf),
+		"--retries", strconv.Itoa(mr),
+		"--fragment-retries", strconv.Itoa(fr),
+		"--retry-sleep", "fragment:exp=1:20",
+		"--socket-timeout", "15",
 		"-o", filepath.Join(outputDir, "%(title)s.%(ext)s"),
+	}
+
+	if opts.CookiesBrowser != "" && util.IsAllowedBrowser(opts.CookiesBrowser) {
+		args = append(args, "--cookies-from-browser", opts.CookiesBrowser)
 	}
 
 	if opts.FFmpegPath != "" {
@@ -92,6 +133,10 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 			args = append(args, "--audio-quality", "320K")
 		}
 		args = append(args, "--embed-thumbnail", "--add-metadata")
+	case PresetAudioWAV:
+		args = append(args, "-x", "--audio-format", "wav", "--add-metadata")
+	case PresetThumbnail:
+		args = append(args, "--skip-download", "--write-thumbnail", "--convert-thumbnails", "jpg")
 	default:
 		args = append(args,
 			"-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b",
@@ -134,7 +179,7 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 
 	args := BuildDownloadArgs(opts)
 
-	cmd := exec.CommandContext(ctx, opts.YtDlpPath, args...)
+	cmd := execCommandContext(ctx, opts.YtDlpPath, args...)
 	prepareCommand(cmd)
 
 	stdout, err := cmd.StdoutPipe()
@@ -152,6 +197,7 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 	var finalFilePath string
 	var lastStatus string
 	var lastPercent float64
+	var hasCookieLock bool
 	downloadedFiles := make(map[string]bool)
 	skippedVideos := make(map[string]bool)
 	rawSkippedCount := 0
@@ -160,6 +206,10 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
+		}
+
+		if strings.Contains(line, "database is locked") {
+			hasCookieLock = true
 		}
 
 		if strings.HasPrefix(line, "FINAL_PATH:") {
@@ -181,6 +231,18 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 			f = strings.TrimSuffix(f, "\"")
 			finalFilePath = strings.TrimSpace(f)
 			downloadedFiles[finalFilePath] = true
+		} else if strings.Contains(line, "Writing video thumbnail") && strings.Contains(line, " to: ") {
+			parts := strings.Split(line, " to: ")
+			if len(parts) == 2 {
+				finalFilePath = strings.TrimSpace(parts[1])
+				downloadedFiles[finalFilePath] = true
+			}
+		} else if strings.Contains(line, "Converting thumbnail") && strings.Contains(line, " to: ") {
+			parts := strings.Split(line, " to: ")
+			if len(parts) == 2 {
+				finalFilePath = strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				downloadedFiles[finalFilePath] = true
+			}
 		}
 
 		if pMatches := playlistItemRegex.FindStringSubmatch(line); len(pMatches) == 3 {
@@ -241,6 +303,8 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 			statusMsg = "Đang hợp nhất video và audio..."
 		case strings.Contains(line, "[EmbedThumbnail]"):
 			statusMsg = "Đang nhúng ảnh bìa thumbnail..."
+		case strings.Contains(line, "[ThumbnailsConvertor]"), strings.Contains(line, "Writing video thumbnail"):
+			statusMsg = "Đang trích xuất ảnh bìa chất lượng cao..."
 		case strings.Contains(line, "[Metadata]") || strings.Contains(line, "[Fixup]"):
 			statusMsg = "Đang hoàn thiện siêu dữ liệu..."
 		case strings.Contains(line, "Deleting original file"):
@@ -267,7 +331,22 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		skippedCount = rawSkippedCount
 	}
 
+	if opts.Preset == PresetThumbnail && finalFilePath != "" {
+		if downloadedCount == 0 {
+			downloadedCount = 1
+		}
+		if opts.OnProgress != nil {
+			opts.OnProgress(ProgressUpdate{
+				Percent:       100,
+				StatusMessage: "Đã tải xong ảnh bìa!",
+			})
+		}
+	}
+
 	if waitErr != nil {
+		if hasCookieLock {
+			return nil, fmt.Errorf("Trình duyệt đang mở và khóa file cookies. Cậu chủ vui lòng đóng trình duyệt rồi thử lại.")
+		}
 		if opts.DownloadPlaylist && downloadedCount > 0 {
 			// Playlist completed with some videos downloaded; ignore non-zero exit caused by skipped items
 		} else {

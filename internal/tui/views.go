@@ -96,9 +96,15 @@ func (m Model) viewInputURL() string {
 		s.WriteString(StyleHelp.Render(fmt.Sprintf("📂 Thư mục lưu: %s  (Bấm 'c' để đổi)\n", m.OutputDir)))
 	}
 
-	helpText := "Phím tắt: Enter (Tiếp tục) • h (Lịch sử) • c (Đổi thư mục) • Esc / Ctrl+C (Thoát)"
+	cookiesStatus := "TẮT"
+	if m.CookiesBrowser != "" {
+		cookiesStatus = strings.ToUpper(m.CookiesBrowser)
+	}
+	s.WriteString(StyleHelp.Render(fmt.Sprintf("🍪 Cookies trình duyệt: %s  (Bấm 'b' hoặc Ctrl+B để đổi)\n\n", StyleHighlight.Render(cookiesStatus))))
+
+	helpText := "Phím tắt: Enter (Tiếp tục) • b (Cookies) • h (Lịch sử) • c (Đổi thư mục) • Esc / Ctrl+C (Thoát)"
 	if m.DuplicateHistory != nil {
-		helpText = "Phím tắt: Enter (Tải lại) • o (Mở tệp cũ) • h (Lịch sử) • c (Đổi thư mục) • Esc (Thoát)"
+		helpText = "Phím tắt: Enter (Tải lại) • o (Mở tệp cũ) • b (Cookies) • h (Lịch sử) • c (Đổi thư mục) • Esc (Thoát)"
 	}
 	if m.AvailableUpdate != nil {
 		helpText += " • u (Cập nhật app)"
@@ -180,7 +186,7 @@ func (m Model) viewSelectPreset() string {
 		}
 	}
 
-	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓/1-7: Chọn • t: Cắt đoạn • s: Bật/tắt phụ đề • Enter: Tải ngay • Esc: Quay lại"))
+	s.WriteString("\n" + StyleHelp.Render("Phím tắt: ↑/↓/1-9: Chọn • t: Cắt đoạn • s: Bật/tắt phụ đề • Enter: Tải ngay • Esc: Quay lại"))
 	return StyleCard.Render(s.String())
 }
 

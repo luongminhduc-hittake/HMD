@@ -19,9 +19,11 @@ func main() {
 		_ = os.Remove(execPath + ".old")
 	}
 
-	// 2. Flags handling
-	if len(os.Args) > 1 {
-		arg := os.Args[1]
+	// 2. Flags & argument handling
+	cookiesArg := ""
+	initialURL := ""
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
 		if arg == "-v" || arg == "--version" {
 			fmt.Printf("hittakeMD v%s\n", updater.CurrentVersion)
 			return
@@ -39,19 +41,24 @@ func main() {
 			fmt.Println("--install chỉ áp dụng trên Windows (trên Linux hãy dùng ./install.sh)")
 			return
 		}
+		if (arg == "-cookies" || arg == "--cookies") && i+1 < len(os.Args) {
+			cookiesArg = os.Args[i+1]
+			i++
+			continue
+		}
+		if !strings.HasPrefix(arg, "-") && initialURL == "" {
+			initialURL = arg
+		}
 	}
 
-	// 3. Initial URL from arguments or auto-detect from clipboard
-	initialURL := ""
-	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
-		initialURL = os.Args[1]
-	} else {
+	// 3. Initial URL auto-detect from clipboard if not passed via args
+	if initialURL == "" {
 		initialURL = util.GetMediaURLFromClipboard()
 	}
 
 	// Interactive TUI mode
 	p := tea.NewProgram(
-		tui.InitialModel("", initialURL),
+		tui.InitialModel("", initialURL, cookiesArg),
 		tea.WithAltScreen(),
 	)
 
