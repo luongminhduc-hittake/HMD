@@ -136,21 +136,21 @@ func TestModelCookiesToggle(t *testing.T) {
 	m.State = StateInputURL
 	m.Input.SetValue("")
 
-	// Press ctrl+b to cycle to chrome
+	// Press ctrl+b to cycle from off to auto
 	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlB})
 	model2 := m2.(Model)
-	if model2.CookiesBrowser != "chrome" {
-		t.Errorf("expected cookies chrome, got %s", model2.CookiesBrowser)
+	if model2.CookiesBrowser != "auto" {
+		t.Errorf("expected cookies auto, got %s", model2.CookiesBrowser)
 	}
-	if !strings.Contains(model2.View(), "CHROME") {
-		t.Errorf("expected view to contain CHROME cookies badge, got: %s", model2.View())
+	if !strings.Contains(model2.View(), "AUTO") {
+		t.Errorf("expected view to contain AUTO cookies badge, got: %s", model2.View())
 	}
 
-	// Press ctrl+b to cycle to firefox
+	// Press ctrl+b to cycle to next option
 	m3, _ := model2.Update(tea.KeyMsg{Type: tea.KeyCtrlB})
 	model3 := m3.(Model)
-	if model3.CookiesBrowser != "firefox" {
-		t.Errorf("expected cookies firefox, got %s", model3.CookiesBrowser)
+	if model3.CookiesBrowser == "" || model3.CookiesBrowser == "auto" {
+		t.Errorf("expected cookies to advance to a concrete browser option, got %s", model3.CookiesBrowser)
 	}
 }
 

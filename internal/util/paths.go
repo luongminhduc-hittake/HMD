@@ -83,9 +83,9 @@ func OpenFolder(targetPath string) error {
 		winFolder := filepath.FromSlash(folder)
 		cmd = exec.Command("explorer.exe", winFolder)
 	case "darwin":
-		cmd = exec.Command("open", "--", folder)
+		cmd = exec.Command("open", folder)
 	default:
-		cmd = exec.Command("xdg-open", "--", folder)
+		cmd = exec.Command("xdg-open", folder)
 	}
 	if err := cmd.Start(); err != nil {
 		return err

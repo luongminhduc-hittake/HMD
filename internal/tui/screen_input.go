@@ -161,7 +161,9 @@ func (m Model) viewInputURL() string {
 	}
 
 	cookiesStatus := "TẮT"
-	if m.CookiesBrowser != "" {
+	if strings.EqualFold(m.CookiesBrowser, "auto") {
+		cookiesStatus = "AUTO (Tự động)"
+	} else if m.CookiesBrowser != "" {
 		cookiesStatus = strings.ToUpper(m.CookiesBrowser)
 	}
 	s.WriteString(StyleHelp.Render(fmt.Sprintf("🍪 Cookies trình duyệt: %s  (Ctrl+B để đổi)\n\n", StyleHighlight.Render(cookiesStatus))))

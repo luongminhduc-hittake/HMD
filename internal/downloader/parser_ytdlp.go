@@ -19,6 +19,7 @@ type YtDlpParser struct {
 	skippedVideos   map[string]bool
 	rawSkippedCount int
 	hasCookieLock   bool
+	hasAuthError    bool
 	lastPercent     float64
 }
 
@@ -87,6 +88,16 @@ func (p *YtDlpParser) FeedLine(line string) {
 	// Error & skip detection
 	if strings.Contains(line, "database is locked") {
 		p.hasCookieLock = true
+	}
+	lowerLine := strings.ToLower(line)
+	if strings.Contains(lowerLine, "sign in") ||
+		strings.Contains(lowerLine, "private video") ||
+		strings.Contains(lowerLine, "login required") ||
+		strings.Contains(lowerLine, "members-only") ||
+		strings.Contains(lowerLine, "cookies are invalid") ||
+		strings.Contains(lowerLine, "could not copy") ||
+		strings.Contains(lowerLine, "unsupported browser specified for cookies") {
+		p.hasAuthError = true
 	}
 	if strings.Contains(line, "ERROR:") || strings.Contains(line, "Skipping item") || strings.Contains(line, "is unavailable") || strings.Contains(line, "Private video") {
 		if eMatches := errorItemRegex.FindStringSubmatch(line); len(eMatches) == 2 {

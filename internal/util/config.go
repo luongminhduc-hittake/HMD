@@ -18,34 +18,68 @@ type Config struct {
 
 // AllowedBrowsers contains safe browser identifiers for yt-dlp --cookies-from-browser.
 var AllowedBrowsers = map[string]bool{
-	"chrome":   true,
-	"firefox":  true,
-	"brave":    true,
-	"edge":     true,
-	"chromium": true,
-	"opera":    true,
-	"vivaldi":  true,
+	"auto":      true,
+	"chrome":    true,
+	"firefox":   true,
+	"brave":     true,
+	"edge":      true,
+	"chromium":  true,
+	"opera":     true,
+	"vivaldi":   true,
+	"zen":       true,
+	"floorp":    true,
+	"librewolf": true,
+	"waterfox":  true,
+	"coccoc":    true,
 }
 
-// IsAllowedBrowser checks if the given browser name is in the security allowlist.
+// IsAllowedBrowser checks if the given browser name is in the security allowlist
+// or matches safe custom profile syntax like "firefox:/path".
 func IsAllowedBrowser(browser string) bool {
-	return AllowedBrowsers[strings.ToLower(strings.TrimSpace(browser))]
+	b := strings.TrimSpace(browser)
+	if b == "" {
+		return false
+	}
+	if AllowedBrowsers[strings.ToLower(b)] {
+		return true
+	}
+	for _, prefix := range []string{"firefox:", "chromium:"} {
+		if strings.HasPrefix(b, prefix) {
+			targetPath := strings.TrimPrefix(b, prefix)
+			if strings.ContainsAny(targetPath, ";|&$`\r\n\t") || len(targetPath) == 0 {
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }
 
-// CycleBrowser rotates through common browser cookie options: off -> chrome -> firefox -> edge -> brave -> off.
+// CycleBrowser rotates through available browser cookie options:
+// off ("") -> "auto" -> [detected installed browsers...] -> off ("")
 func CycleBrowser(current string) string {
-	switch strings.ToLower(strings.TrimSpace(current)) {
-	case "chrome":
-		return "firefox"
-	case "firefox":
-		return "edge"
-	case "edge":
-		return "brave"
-	case "brave":
-		return ""
-	default:
-		return "chrome"
+	current = strings.ToLower(strings.TrimSpace(current))
+	options := []string{"", "auto"}
+
+	installed := ScanInstalledBrowsers()
+	if len(installed) > 0 {
+		seen := make(map[string]bool)
+		for _, b := range installed {
+			if !seen[b.ID] {
+				seen[b.ID] = true
+				options = append(options, b.ID)
+			}
+		}
+	} else {
+		options = append(options, "chrome", "firefox", "edge", "brave")
 	}
+
+	for i, opt := range options {
+		if opt == current {
+			return options[(i+1)%len(options)]
+		}
+	}
+	return "auto"
 }
 
 // GetConfigFilePath returns the path to ~/.config/hmd/config.json.

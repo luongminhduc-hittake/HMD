@@ -238,3 +238,19 @@ func TestExecuteDownloadMockCancel(t *testing.T) {
 		t.Fatalf("expected error on canceled context, got nil")
 	}
 }
+
+func TestResolveCookieArg(t *testing.T) {
+	if got := resolveCookieArg(""); got != "" {
+		t.Errorf("expected empty string for empty input, got %q", got)
+	}
+	if got := resolveCookieArg("firefox:/custom/profile"); got != "firefox:/custom/profile" {
+		t.Errorf("expected custom firefox profile unchanged, got %q", got)
+	}
+	if got := resolveCookieArg("chromium:/custom/profile"); got != "chromium:/custom/profile" {
+		t.Errorf("expected custom chromium profile unchanged, got %q", got)
+	}
+	// Chrome should resolve to something valid (either detected or "chrome")
+	if got := resolveCookieArg("chrome"); got == "" {
+		t.Errorf("expected non-empty resolved chrome cookie arg")
+	}
+}

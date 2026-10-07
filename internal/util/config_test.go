@@ -51,30 +51,39 @@ func TestBrowserCycleAndValidation(t *testing.T) {
 	if !IsAllowedBrowser("FireFox") {
 		t.Errorf("expected firefox case-insensitive to be allowed")
 	}
+	if !IsAllowedBrowser("auto") {
+		t.Errorf("expected auto to be allowed")
+	}
+	if !IsAllowedBrowser("zen") {
+		t.Errorf("expected zen to be allowed")
+	}
+	if !IsAllowedBrowser("firefox:/home/user/.zen/profile") {
+		t.Errorf("expected custom firefox profile path to be allowed")
+	}
+	if IsAllowedBrowser("firefox:/path; rm -rf") {
+		t.Errorf("unsafe profile path with semicolon should not be allowed")
+	}
 	if IsAllowedBrowser("malicious_browser; rm -rf") {
 		t.Errorf("unsafe browser should not be allowed")
 	}
 
-	// Test rotation
+	// Test rotation starts with auto
 	b := CycleBrowser("")
-	if b != "chrome" {
-		t.Errorf("expected chrome, got %s", b)
+	if b != "auto" {
+		t.Errorf("expected cycle from empty to auto, got %s", b)
 	}
-	b = CycleBrowser(b)
-	if b != "firefox" {
-		t.Errorf("expected firefox, got %s", b)
+
+	// Cycling eventually reaches back to empty string
+	visited := map[string]bool{b: true}
+	for i := 0; i < 20; i++ {
+		b = CycleBrowser(b)
+		if b == "" {
+			break
+		}
+		visited[b] = true
 	}
-	b = CycleBrowser(b)
-	if b != "edge" {
-		t.Errorf("expected edge, got %s", b)
-	}
-	b = CycleBrowser(b)
-	if b != "brave" {
-		t.Errorf("expected brave, got %s", b)
-	}
-	b = CycleBrowser(b)
 	if b != "" {
-		t.Errorf("expected off (\"\"), got %s", b)
+		t.Errorf("expected cycling to eventually turn off, ended with %s", b)
 	}
 }
 

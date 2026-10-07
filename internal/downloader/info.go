@@ -63,52 +63,43 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		}
 	}
 
-	args := []string{"--no-config"}
-	var cookies string
+	var rawCookie string
 	if len(cookiesBrowser) > 0 {
-		cookies = strings.TrimSpace(cookiesBrowser[0])
-	}
-	if cookies != "" && util.IsAllowedBrowser(cookies) {
-		args = append(args, "--cookies-from-browser", cookies)
+		rawCookie = strings.TrimSpace(cookiesBrowser[0])
 	}
 
-	if isPurePlaylist {
-		args = append(args,
-			"--flat-playlist",
-			"--no-warnings",
-			"--ignore-errors",
-			"--playlist-items", "1",
-			"--print", "title:%(playlist_title|title)s",
-			"--print", "uploader:%(uploader|channel)s",
-			"--",
-			rawURL,
-		)
+	var candidates []util.DetectedBrowser
+	if rawCookie != "" {
+		candidates = util.GetCookieCascade(rawCookie)
+	}
+
+	var stdoutStr, stderrStr string
+	var lastErr error
+
+	if len(candidates) > 0 {
+		for i, cand := range candidates {
+			sOut, sErr, err := executeFetchInfoCmd(ctx, ytdlpPath, rawURL, isPurePlaylist, cand.CookieArg)
+			if err == nil {
+				stdoutStr = sOut
+				lastErr = nil
+				break
+			}
+			stdoutStr, stderrStr, lastErr = sOut, sErr, err
+			errStr := strings.TrimSpace(stderrStr)
+			isRetryable := strings.Contains(errStr, "database is locked") ||
+				strings.Contains(errStr, "Sign in") ||
+				strings.Contains(errStr, "unsupported browser specified for cookies")
+			if isRetryable && i+1 < len(candidates) {
+				continue
+			}
+			break
+		}
 	} else {
-		args = append(args,
-			"--simulate",
-			"--no-warnings",
-			"--ignore-errors",
-			"--no-playlist",
-			"--print", "title:%(title)s",
-			"--print", "duration_string:%(duration_string)s",
-			"--print", "uploader:%(uploader)s",
-			"--print", "height:%(height)s",
-			"--print", "vcodec:%(vcodec)s",
-			"--",
-			rawURL,
-		)
+		stdoutStr, stderrStr, lastErr = executeFetchInfoCmd(ctx, ytdlpPath, rawURL, isPurePlaylist, "")
 	}
 
-	cmd := execCommandContext(ctx, ytdlpPath, args...)
-	prepareCommand(cmd)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		errStr := strings.TrimSpace(stderr.String())
+	if lastErr != nil {
+		errStr := strings.TrimSpace(stderrStr)
 		if strings.Contains(errStr, "database is locked") {
 			return nil, fmt.Errorf("Trình duyệt đang mở và khóa file cookies. Cậu chủ vui lòng đóng trình duyệt rồi thử lại.")
 		}
@@ -121,7 +112,7 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		if errStr != "" {
 			return nil, fmt.Errorf("%s", errStr)
 		}
-		return nil, fmt.Errorf("không thể phân tích link: %w", err)
+		return nil, fmt.Errorf("không thể phân tích link: %w", lastErr)
 	}
 
 	info := &MediaInfo{
@@ -139,7 +130,7 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 	var vcodec string
 	var maxHeight int
 
-	scanner := bufio.NewScanner(&stdout)
+	scanner := bufio.NewScanner(strings.NewReader(stdoutStr))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		switch {
@@ -178,4 +169,48 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 	info.AvailablePresets = DetermineAvailablePresets(info.MediaType, info.MaxHeight)
 
 	return info, nil
+}
+
+func executeFetchInfoCmd(ctx context.Context, ytdlpPath, rawURL string, isPurePlaylist bool, cookieArg string) (string, string, error) {
+	args := []string{"--no-config"}
+	if cookieArg != "" && util.IsAllowedBrowser(cookieArg) {
+		args = append(args, "--cookies-from-browser", cookieArg)
+	}
+
+	if isPurePlaylist {
+		args = append(args,
+			"--flat-playlist",
+			"--no-warnings",
+			"--ignore-errors",
+			"--playlist-items", "1",
+			"--print", "title:%(playlist_title|title)s",
+			"--print", "uploader:%(uploader|channel)s",
+			"--",
+			rawURL,
+		)
+	} else {
+		args = append(args,
+			"--simulate",
+			"--no-warnings",
+			"--ignore-errors",
+			"--no-playlist",
+			"--print", "title:%(title)s",
+			"--print", "duration_string:%(duration_string)s",
+			"--print", "uploader:%(uploader)s",
+			"--print", "height:%(height)s",
+			"--print", "vcodec:%(vcodec)s",
+			"--",
+			rawURL,
+		)
+	}
+
+	cmd := execCommandContext(ctx, ytdlpPath, args...)
+	prepareCommand(cmd)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	return stdout.String(), stderr.String(), err
 }

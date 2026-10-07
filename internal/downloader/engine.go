@@ -95,8 +95,11 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 	}
 	args = append(args, "-o", filepath.Join(outputDir, outputPattern))
 
-	if opts.CookiesBrowser != "" && util.IsAllowedBrowser(opts.CookiesBrowser) {
-		args = append(args, "--cookies-from-browser", opts.CookiesBrowser)
+	if opts.CookiesBrowser != "" {
+		cookieArg := resolveCookieArg(opts.CookiesBrowser)
+		if cookieArg != "" && util.IsAllowedBrowser(cookieArg) {
+			args = append(args, "--cookies-from-browser", cookieArg)
+		}
 	}
 
 	if opts.FFmpegPath != "" {
@@ -187,4 +190,29 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 		return executeGalleryDlDownload(ctx, opts)
 	}
 	return runStandardDownload(ctx, opts)
+}
+
+// resolveCookieArg converts user-specified browser options (like "auto", "zen", "chrome")
+// into concrete command-line arguments recognized by yt-dlp/gallery-dl.
+// If "auto" produces no candidate, returns empty string.
+func resolveCookieArg(pref string) string {
+	pref = strings.TrimSpace(pref)
+	if pref == "" {
+		return ""
+	}
+	if strings.HasPrefix(pref, "firefox:") || strings.HasPrefix(pref, "chromium:") {
+		return pref
+	}
+	if strings.EqualFold(pref, "auto") {
+		cands := util.GetCookieCascade("auto")
+		if len(cands) > 0 {
+			return cands[0].CookieArg
+		}
+		return ""
+	}
+	cands := util.GetCookieCascade(pref)
+	if len(cands) > 0 {
+		return cands[0].CookieArg
+	}
+	return pref
 }
