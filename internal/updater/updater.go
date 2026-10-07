@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	CurrentVersion = "3.0.1-hotfix"
+	CurrentVersion = "3.0.1"
 	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 
@@ -114,15 +114,16 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 }
 
 func parseSemver(v string) (major, minor, patch int) {
-	parts := strings.Split(strings.TrimPrefix(v, "v"), ".")
+	clean := strings.TrimPrefix(v, "v")
+	parts := strings.Split(clean, ".")
 	if len(parts) > 0 {
-		major, _ = strconv.Atoi(parts[0])
+		major, _ = strconv.Atoi(strings.Split(parts[0], "-")[0])
 	}
 	if len(parts) > 1 {
-		minor, _ = strconv.Atoi(parts[1])
+		minor, _ = strconv.Atoi(strings.Split(parts[1], "-")[0])
 	}
 	if len(parts) > 2 {
-		patch, _ = strconv.Atoi(parts[2])
+		patch, _ = strconv.Atoi(strings.Split(parts[2], "-")[0])
 	}
 	return
 }

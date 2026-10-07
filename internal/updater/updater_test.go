@@ -27,6 +27,9 @@ func TestIsNewerVersion(t *testing.T) {
 		{"2.2.0", "2.2.0", false},
 		{"2.2.1", "2.2.0", true},
 		{"2.2.1", "2.2.1", false},
+		{"3.0.1-hotfix", "3.0.0", true},
+		{"3.0.1", "3.0.0", true},
+		{"3.0.1-hotfix", "3.0.1", false},
 	}
 
 	for _, tt := range tests {
