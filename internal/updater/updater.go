@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	CurrentVersion = "2.4.0"
+	CurrentVersion = "2.5.0"
 	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 

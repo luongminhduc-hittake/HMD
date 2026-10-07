@@ -1,5 +1,7 @@
 package downloader
 
+import "hmd/internal/spotify"
+
 // FormatPreset represents a download quality and format preset.
 type FormatPreset string
 
@@ -73,11 +75,14 @@ var AvailablePresets = []PresetOption{
 
 // MediaInfo contains inspected metadata of the URL.
 type MediaInfo struct {
-	Title      string
-	Duration   string
-	Uploader   string
-	IsPlaylist bool
-	RawURL     string
+	Title         string
+	Duration      string
+	Uploader      string
+	IsPlaylist    bool
+	RawURL        string
+	IsSpotify     bool
+	SpotifyTracks []spotify.TrackInfo
+	ThumbnailURL  string
 }
 
 // ProgressUpdate contains real-time progress information.
@@ -99,4 +104,5 @@ type DownloadResult struct {
 	IsPlaylist      bool
 	DownloadedCount int
 	SkippedCount    int
+	FailedTracks    []string
 }

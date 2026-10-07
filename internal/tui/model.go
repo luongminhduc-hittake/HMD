@@ -112,7 +112,7 @@ func InitialModel(customOutputDir, initialURL string, customCookies ...string) M
 
 	hist := util.LoadHistory()
 	ti := textinput.New()
-	ti.Placeholder = "Dán đường dẫn YouTube tại đây (Ctrl+V hoặc chuột phải)..."
+	ti.Placeholder = "Dán link (YouTube, TikTok, Facebook, Instagram, Spotify, Reddit... hoặc link bất kỳ)..."
 	var dup *util.HistoryEntry
 	if initialURL != "" {
 		ti.SetValue(initialURL)

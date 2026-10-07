@@ -89,7 +89,13 @@ func (m Model) viewInputURL() string {
 	if currVal != "" {
 		p := downloader.DetectPlatform(currVal)
 		badgeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color(p.Color)).Bold(true).Padding(0, 1)
-		s.WriteString(badgeStyle.Render(p.Name) + " " + StyleHelp.Render(fmt.Sprintf("Phát hiện liên kết từ %s", p.Name)) + "\n\n")
+		if p.Name == "Media" {
+			s.WriteString(badgeStyle.Render(p.Name) + " " + StyleHelp.Render("Liên kết ngoài danh mục — cứ thử tải xem được không nhé!") + "\n\n")
+		} else {
+			s.WriteString(badgeStyle.Render(p.Name) + " " + StyleHelp.Render(fmt.Sprintf("Phát hiện liên kết từ %s", p.Name)) + "\n\n")
+		}
+	} else {
+		s.WriteString(StyleHelp.Render("🌐 Hỗ trợ: YouTube • TikTok • Facebook • Instagram • X • SoundCloud • Spotify • Reddit • Threads • Pinterest\n💡 Trang khác: Cứ thử dán link vào xem tải được không nhé!") + "\n\n")
 	}
 
 	if m.OutputDir != "" {
@@ -133,14 +139,28 @@ func (m Model) viewFetchingInfo() string {
 
 func (m Model) viewSelectPlaylist() string {
 	var s strings.Builder
-	s.WriteString(StyleBadgeInfo.Render("PLAYLIST") + " Phát hiện Danh sách phát trong đường dẫn!\n\n")
-	if m.MediaInfo != nil {
-		s.WriteString(fmt.Sprintf("Tiêu đề: %s\n\n", StyleHighlight.Render(m.MediaInfo.Title)))
+	if m.MediaInfo != nil && m.MediaInfo.IsSpotify {
+		s.WriteString(StyleBadgeSuccess.Render("SPOTIFY") + " Phát hiện Album / Playlist Spotify!\n\n")
+		s.WriteString(fmt.Sprintf("Tiêu đề: %s\n", StyleHighlight.Render(m.MediaInfo.Title)))
+		s.WriteString(StyleHelp.Render(fmt.Sprintf("Nghệ sĩ: %s • Số lượng: %d bài hát", m.MediaInfo.Uploader, len(m.MediaInfo.SpotifyTracks))) + "\n\n")
+	} else {
+		s.WriteString(StyleBadgeInfo.Render("PLAYLIST") + " Phát hiện Danh sách phát trong đường dẫn!\n\n")
+		if m.MediaInfo != nil {
+			s.WriteString(fmt.Sprintf("Tiêu đề: %s\n\n", StyleHighlight.Render(m.MediaInfo.Title)))
+		}
 	}
 
-	options := []string{
-		"🎬  Chỉ tải video hiện tại",
-		"📑  Tải toàn bộ danh sách phát (Playlist)",
+	var options []string
+	if m.MediaInfo != nil && m.MediaInfo.IsSpotify {
+		options = []string{
+			"🎵  Chỉ tải bài đầu tiên",
+			fmt.Sprintf("📑  Tải toàn bộ Album / Danh sách (%d bài hát)", len(m.MediaInfo.SpotifyTracks)),
+		}
+	} else {
+		options = []string{
+			"🎬  Chỉ tải video hiện tại",
+			"📑  Tải toàn bộ danh sách phát (Playlist)",
+		}
 	}
 
 	for i, opt := range options {
@@ -158,8 +178,14 @@ func (m Model) viewSelectPlaylist() string {
 func (m Model) viewSelectPreset() string {
 	var s strings.Builder
 	if m.MediaInfo != nil {
-		s.WriteString(fmt.Sprintf("🎬 %s\n", StyleHighlight.Render(m.MediaInfo.Title)))
-		s.WriteString(StyleHelp.Render(fmt.Sprintf("👤 Kênh: %s  •  ⏱ Thời lượng: %s", m.MediaInfo.Uploader, m.MediaInfo.Duration)) + "\n\n")
+		icon := "🎬"
+		role := "Kênh"
+		if m.MediaInfo.IsSpotify {
+			icon = "🎵"
+			role = "Nghệ sĩ"
+		}
+		s.WriteString(fmt.Sprintf("%s %s\n", icon, StyleHighlight.Render(m.MediaInfo.Title)))
+		s.WriteString(StyleHelp.Render(fmt.Sprintf("👤 %s: %s  •  ⏱ Thời lượng: %s", role, m.MediaInfo.Uploader, m.MediaInfo.Duration)) + "\n\n")
 	}
 
 	trimStatus := "Không (Tải trọn vẹn)"
@@ -247,10 +273,24 @@ func (m Model) viewCompleted() string {
 				s.WriteString(fmt.Sprintf("Tiêu đề:    %s\n", StyleHighlight.Render(m.Result.Title)))
 			}
 			if m.Result.DownloadedCount > 0 {
-				s.WriteString(fmt.Sprintf("Đã tải:     %s\n", StyleHighlight.Render(fmt.Sprintf("%d video thành công", m.Result.DownloadedCount))))
+				s.WriteString(fmt.Sprintf("Đã tải:     %s\n", StyleHighlight.Render(fmt.Sprintf("%d mục thành công", m.Result.DownloadedCount))))
 			}
 			if m.Result.SkippedCount > 0 {
-				s.WriteString(fmt.Sprintf("Bỏ qua:     %s\n", StyleBadgeWarning.Render(fmt.Sprintf("%d video (bị ẩn hoặc không khả dụng)", m.Result.SkippedCount))))
+				s.WriteString(fmt.Sprintf("Bỏ qua:     %s\n", StyleBadgeWarning.Render(fmt.Sprintf("%d mục (bị ẩn hoặc không khả dụng)", m.Result.SkippedCount))))
+			}
+			if len(m.Result.FailedTracks) > 0 {
+				s.WriteString("\n" + StyleHelp.Render("Danh sách các mục bị bỏ qua:") + "\n")
+				limit := 4
+				if len(m.Result.FailedTracks) < limit {
+					limit = len(m.Result.FailedTracks)
+				}
+				for i := 0; i < limit; i++ {
+					s.WriteString(StyleHelp.Render(fmt.Sprintf(" • %s", m.Result.FailedTracks[i])) + "\n")
+				}
+				if len(m.Result.FailedTracks) > limit {
+					s.WriteString(StyleHelp.Render(fmt.Sprintf(" • ...và %d mục khác", len(m.Result.FailedTracks)-limit)) + "\n")
+				}
+				s.WriteString("\n")
 			}
 			if m.Result.FilePath != "" {
 				s.WriteString(fmt.Sprintf("Thư mục:    %s\n\n", StyleSubtitle.Render(m.Result.FilePath)))

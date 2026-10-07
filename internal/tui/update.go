@@ -147,6 +147,7 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		YtDlpPath:           m.Paths.YtDlp,
 		FFmpegPath:          m.Paths.FFmpeg,
 		URL:                 rawURL,
+		Title:               m.MediaInfo.Title,
 		OutputDir:           outDir,
 		Preset:              preset,
 		DownloadPlaylist:    m.DownloadPlaylist,
@@ -156,6 +157,8 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		ConcurrentFragments: m.ConcurrentFragments,
 		MaxRetries:          m.MaxRetries,
 		FragmentRetries:     m.FragmentRetries,
+		IsSpotify:           m.MediaInfo.IsSpotify,
+		SpotifyTracks:       m.MediaInfo.SpotifyTracks,
 		OnProgress: func(pu downloader.ProgressUpdate) {
 			select {
 			case <-ctx.Done():
@@ -252,10 +255,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.MediaInfo = msg.info
 		if m.MediaInfo.IsPlaylist {
 			m.State = StateSelectPlaylist
-			m.PlaylistIndex = 0
+			if m.MediaInfo.IsSpotify {
+				m.PlaylistIndex = 1
+			} else {
+				m.PlaylistIndex = 0
+			}
 		} else {
 			m.State = StateSelectPreset
-			m.PresetIndex = 0
+			if m.MediaInfo.IsSpotify {
+				m.PresetIndex = 3
+			} else {
+				m.PresetIndex = 0
+			}
 		}
 		return m, nil
 
@@ -501,7 +512,11 @@ func (m Model) updateSelectPlaylist(msg tea.Msg) (Model, tea.Cmd) {
 		case "enter":
 			m.DownloadPlaylist = (m.PlaylistIndex == 1)
 			m.State = StateSelectPreset
-			m.PresetIndex = 0
+			if m.MediaInfo != nil && m.MediaInfo.IsSpotify {
+				m.PresetIndex = 3
+			} else {
+				m.PresetIndex = 0
+			}
 		case "esc":
 			m.State = StateInputURL
 			m.Input.Focus()

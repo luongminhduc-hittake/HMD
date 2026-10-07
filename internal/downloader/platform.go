@@ -32,6 +32,14 @@ func DetectPlatform(rawURL string) PlatformInfo {
 		return PlatformInfo{Name: "X / Twitter", Color: "#E7E9EA"}
 	case strings.Contains(host, "soundcloud.com"):
 		return PlatformInfo{Name: "SoundCloud", Color: "#FF5500"}
+	case strings.Contains(host, "spotify.com"):
+		return PlatformInfo{Name: "Spotify", Color: "#1DB954"}
+	case strings.Contains(host, "reddit.com") || strings.Contains(host, "redd.it"):
+		return PlatformInfo{Name: "Reddit", Color: "#FF4500"}
+	case strings.Contains(host, "threads.net") || strings.Contains(host, "threads.com"):
+		return PlatformInfo{Name: "Threads", Color: "#2B2B2B"}
+	case strings.Contains(host, "pinterest.com") || strings.Contains(host, "pin.it"):
+		return PlatformInfo{Name: "Pinterest", Color: "#E60023"}
 	case strings.Contains(host, "bilibili.com"):
 		return PlatformInfo{Name: "Bilibili", Color: "#00AEEC"}
 	case strings.Contains(host, "vimeo.com"):

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"hmd/internal/spotify"
 	"hmd/internal/util"
 )
 
@@ -19,7 +20,9 @@ type DownloadOptions struct {
 	YtDlpPath           string
 	FFmpegPath          string
 	URL                 string
+	Title               string
 	OutputDir           string
+	CustomFilename      string
 	Preset              FormatPreset
 	DownloadPlaylist    bool
 	TrimRange           string
@@ -28,6 +31,8 @@ type DownloadOptions struct {
 	ConcurrentFragments int
 	MaxRetries          int
 	FragmentRetries     int
+	IsSpotify           bool
+	SpotifyTracks       []spotify.TrackInfo
 	OnProgress          func(ProgressUpdate)
 	OnStatus            func(string)
 }
@@ -84,8 +89,13 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 		"--fragment-retries", strconv.Itoa(fr),
 		"--retry-sleep", "fragment:exp=1:20",
 		"--socket-timeout", "15",
-		"-o", filepath.Join(outputDir, "%(title)s.%(ext)s"),
 	}
+
+	outputPattern := "%(title)s.%(ext)s"
+	if opts.CustomFilename != "" {
+		outputPattern = util.SanitizeFilename(opts.CustomFilename) + ".%(ext)s"
+	}
+	args = append(args, "-o", filepath.Join(outputDir, outputPattern))
 
 	if opts.CookiesBrowser != "" && util.IsAllowedBrowser(opts.CookiesBrowser) {
 		args = append(args, "--cookies-from-browser", opts.CookiesBrowser)
@@ -170,8 +180,15 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 	return args
 }
 
-// ExecuteDownload initiates yt-dlp with appropriate flags and streams progress updates.
+// ExecuteDownload initiates download for given options.
 func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult, error) {
+	if opts.IsSpotify && len(opts.SpotifyTracks) > 0 {
+		return executeSpotifyDownload(ctx, opts)
+	}
+	return executeStandardDownload(ctx, opts)
+}
+
+func executeStandardDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult, error) {
 	if opts.OutputDir == "" {
 		opts.OutputDir = util.GetDefaultDownloadDir()
 	}
@@ -376,3 +393,109 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 
 	return res, nil
 }
+
+func executeSpotifyDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult, error) {
+	// If single track and not downloading as playlist
+	if len(opts.SpotifyTracks) == 1 && !opts.DownloadPlaylist {
+		track := opts.SpotifyTracks[0]
+		singleOpts := opts
+		singleOpts.IsSpotify = false
+		singleOpts.CustomFilename = fmt.Sprintf("%s - %s", track.Artist, track.Title)
+		if opts.OnStatus != nil {
+			opts.OnStatus(fmt.Sprintf("Đang tìm & tải: %s - %s", track.Artist, track.Title))
+		}
+
+		// Tier 1: ytsearch1:... audio
+		singleOpts.URL = fmt.Sprintf("ytsearch1:%s - %s audio", track.Artist, track.Title)
+		res, err := executeStandardDownload(ctx, singleOpts)
+		if err != nil || res == nil || res.FilePath == "" {
+			// Tier 2: ytsearch1:...
+			singleOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
+			res, err = executeStandardDownload(ctx, singleOpts)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("không thể tìm hoặc tải bài hát %q: %w", track.Title, err)
+		}
+
+		// Inject metadata & cover
+		_ = InjectMetadata(ctx, opts.FFmpegPath, res.FilePath, track)
+		if fi, err := os.Stat(res.FilePath); err == nil {
+			res.FileSize = fi.Size()
+			res.FormattedSize = util.FormatBytes(fi.Size())
+		}
+		res.Title = fmt.Sprintf("%s - %s", track.Artist, track.Title)
+		return res, nil
+	}
+
+	// Multiple tracks / Album / Playlist
+	outputDir := opts.OutputDir
+	if outputDir == "" {
+		outputDir = util.GetDefaultDownloadDir()
+	}
+	if opts.Title != "" {
+		outputDir = filepath.Join(outputDir, util.SanitizeFilename(opts.Title))
+	}
+	_ = os.MkdirAll(outputDir, 0755)
+
+	total := len(opts.SpotifyTracks)
+	downloadedCount := 0
+	skippedCount := 0
+	var failedTracks []string
+
+	for i, track := range opts.SpotifyTracks {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
+		if !track.IsPlayable {
+			skippedCount++
+			failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (bị khóa bản quyền trên Spotify)", track.Artist, track.Title))
+			continue
+		}
+
+		if opts.OnStatus != nil {
+			opts.OnStatus(fmt.Sprintf("[%d/%d] %s - %s", i+1, total, track.Artist, track.Title))
+		}
+		if opts.OnProgress != nil {
+			opts.OnProgress(ProgressUpdate{
+				Percent:       float64(i) / float64(total) * 100,
+				StatusMessage: fmt.Sprintf("[%d/%d] %s", i+1, total, track.Title),
+			})
+		}
+
+		trackOpts := opts
+		trackOpts.IsSpotify = false
+		trackOpts.OutputDir = outputDir
+		trackOpts.DownloadPlaylist = false
+		trackOpts.CustomFilename = fmt.Sprintf("%s - %s", track.Artist, track.Title)
+
+		// Tier 1: ytsearch1:... audio
+		trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s audio", track.Artist, track.Title)
+		singleRes, err := executeStandardDownload(ctx, trackOpts)
+		if err != nil || singleRes == nil || singleRes.FilePath == "" {
+			// Tier 2: ytsearch1:...
+			trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
+			singleRes, err = executeStandardDownload(ctx, trackOpts)
+		}
+
+		if err != nil || singleRes == nil || singleRes.FilePath == "" {
+			skippedCount++
+			failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (không tìm thấy trên YouTube)", track.Artist, track.Title))
+			continue
+		}
+
+		downloadedCount++
+		_ = InjectMetadata(ctx, opts.FFmpegPath, singleRes.FilePath, track)
+	}
+
+	return &DownloadResult{
+		FilePath:        outputDir,
+		FileName:        filepath.Base(outputDir),
+		Title:           opts.Title,
+		IsPlaylist:      true,
+		DownloadedCount: downloadedCount,
+		SkippedCount:    skippedCount,
+		FailedTracks:    failedTracks,
+	}, nil
+}
+

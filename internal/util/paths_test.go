@@ -39,3 +39,25 @@ func TestDirectories(t *testing.T) {
 		t.Errorf("GetDefaultDownloadDir returned empty string")
 	}
 }
+
+func TestSanitizeFilename(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Normal Name", "Normal Name"},
+		{"Song: Title / With? Wild* Chars|", "Song_ Title _ With_ Wild_ Chars_"},
+		{"...dots...", "dots"},
+		{"", "untitled"},
+		{"   ", "untitled"},
+		{"\x00\x01\x1fHidden\x07", "Hidden"},
+	}
+
+	for _, tt := range tests {
+		got := SanitizeFilename(tt.input)
+		if got != tt.expected {
+			t.Errorf("SanitizeFilename(%q) = %q; want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+

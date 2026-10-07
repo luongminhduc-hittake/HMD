@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // GetAppDir returns the directory where hittakeMD stores configuration and binaries.
@@ -101,4 +102,33 @@ func FormatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// SanitizeFilename removes illegal filesystem characters across Windows and Unix platforms.
+func SanitizeFilename(name string) string {
+	invalid := []rune{'<', '>', ':', '"', '/', '\\', '|', '?', '*'}
+	result := make([]rune, 0, len(name))
+	for _, r := range name {
+		if r < 32 {
+			continue
+		}
+		isInvalid := false
+		for _, inv := range invalid {
+			if r == inv {
+				isInvalid = true
+				break
+			}
+		}
+		if isInvalid {
+			result = append(result, '_')
+		} else {
+			result = append(result, r)
+		}
+	}
+	s := strings.TrimSpace(string(result))
+	s = strings.Trim(s, ".")
+	if s == "" {
+		return "untitled"
+	}
+	return s
 }

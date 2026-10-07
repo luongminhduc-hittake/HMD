@@ -9,13 +9,40 @@ import (
 	"strings"
 	"time"
 
+	"hmd/internal/spotify"
 	"hmd/internal/util"
 )
 
-// FetchInfo retrieves metadata for a given YouTube URL without downloading media.
+// FetchInfo retrieves metadata for a given URL without downloading media.
 func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
+
+	// Intercept Spotify URLs to resolve via Spotify native engine
+	if spotify.IsSpotifyURL(rawURL) {
+		coll, err := spotify.Resolve(ctx, rawURL)
+		if err != nil {
+			return nil, err
+		}
+		durationStr := ""
+		if len(coll.Tracks) == 1 && coll.Tracks[0].DurationMs > 0 {
+			durationSec := coll.Tracks[0].DurationMs / 1000
+			durationStr = fmt.Sprintf("%02d:%02d", durationSec/60, durationSec%60)
+		} else if len(coll.Tracks) > 1 {
+			durationStr = fmt.Sprintf("%d bài hát", len(coll.Tracks))
+		}
+		isPlaylist := coll.Type == spotify.ItemAlbum || coll.Type == spotify.ItemPlaylist
+		return &MediaInfo{
+			Title:         coll.Title,
+			Duration:      durationStr,
+			Uploader:      coll.Subtitle,
+			IsPlaylist:    isPlaylist,
+			RawURL:        rawURL,
+			IsSpotify:     true,
+			SpotifyTracks: coll.Tracks,
+			ThumbnailURL:  coll.CoverURL,
+		}, nil
+	}
 
 	// Check if URL indicates a playlist
 	isPlaylist := false

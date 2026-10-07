@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"hmd/internal/downloader"
+	"hmd/internal/spotify"
 	"hmd/internal/util"
 )
 
@@ -267,5 +268,73 @@ func TestModelNoBareLetterShortcuts(t *testing.T) {
 		t.Errorf("expected input to contain 'bchuo', got %q", m.Input.Value())
 	}
 }
+
+func TestModelPlatformHints(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateInputURL
+	m.Input.SetValue("")
+
+	view := m.View()
+	if !strings.Contains(view, "YouTube") || !strings.Contains(view, "Spotify") || !strings.Contains(view, "Reddit") {
+		t.Errorf("expected platform list in view, got: %s", view)
+	}
+	if !strings.Contains(view, "Cứ thử dán link vào xem tải được không nhé") {
+		t.Errorf("expected fallback hint in view, got: %s", view)
+	}
+
+	// When entering an unknown media link
+	m.Input.SetValue("https://customdomain.tv/video/123")
+	view2 := m.View()
+	if !strings.Contains(view2, "cứ thử tải xem được không nhé") {
+		t.Errorf("expected fallback try prompt for unknown media, got: %s", view2)
+	}
+}
+
+func TestModelSpotifyPresetAndViews(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateSelectPreset
+	m.MediaInfo = &downloader.MediaInfo{
+		Title:     "Never Gonna Give You Up",
+		Uploader:  "Rick Astley",
+		Duration:  "03:33",
+		IsSpotify: true,
+	}
+
+	// Spotify track view shows note icon and artist
+	view := m.View()
+	if !strings.Contains(view, "🎵") || !strings.Contains(view, "Rick Astley") {
+		t.Errorf("expected Spotify note icon and artist in preset view, got: %s", view)
+	}
+
+	// Test playlist view for Spotify
+	m.State = StateSelectPlaylist
+	m.MediaInfo.IsPlaylist = true
+	m.MediaInfo.SpotifyTracks = []spotify.TrackInfo{
+		{Title: "Song 1", Artist: "Artist 1"},
+		{Title: "Song 2", Artist: "Artist 2"},
+	}
+	plView := m.View()
+	if !strings.Contains(plView, "SPOTIFY") || !strings.Contains(plView, "2 bài hát") {
+		t.Errorf("expected Spotify playlist view, got: %s", plView)
+	}
+
+	// Test completed view with failed tracks
+	m.State = StateCompleted
+	m.Result = &downloader.DownloadResult{
+		IsPlaylist:      true,
+		Title:           "Test Spotify Album",
+		DownloadedCount: 1,
+		SkippedCount:    1,
+		FailedTracks:    []string{"Blocked Song (bị khóa bản quyền)"},
+	}
+	compView := m.View()
+	if !strings.Contains(compView, "Blocked Song (bị khóa bản quyền)") {
+		t.Errorf("expected FailedTracks in completed view, got: %s", compView)
+	}
+}
+
+
 
 

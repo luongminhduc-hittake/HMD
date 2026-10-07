@@ -18,6 +18,11 @@ func TestDetectPlatform(t *testing.T) {
 		{"https://www.instagram.com/reel/C_abc/", "Instagram"},
 		{"https://x.com/user/status/123", "X / Twitter"},
 		{"https://soundcloud.com/artist/track", "SoundCloud"},
+		{"https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT", "Spotify"},
+		{"https://www.reddit.com/r/funny/comments/12345/funny_video/", "Reddit"},
+		{"https://www.threads.net/@user/post/abc123", "Threads"},
+		{"https://www.pinterest.com/pin/123456789/", "Pinterest"},
+		{"https://pin.it/abc123", "Pinterest"},
 		{"https://example.com/video.mp4", "Media"},
 	}
 
