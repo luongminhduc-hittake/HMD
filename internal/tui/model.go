@@ -60,7 +60,8 @@ type Model struct {
 	DownloadPlaylist bool
 
 	// Preset choice
-	PresetIndex int
+	PresetIndex      int
+	AvailablePresets []downloader.PresetOption
 
 	// Download state
 	ProgressModel progress.Model

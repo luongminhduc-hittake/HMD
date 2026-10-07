@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"hmd/internal/util"
 )
 
 const (
-	CurrentVersion = "2.5.1"
+	CurrentVersion = "3.0.0"
 	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 
@@ -155,11 +157,9 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 	}
 	tmpPath := out.Name()
 
-	// Download file with header timeout rather than hard global body timeout
+	// Download file with shared transport
 	client := &http.Client{
-		Transport: &http.Transport{
-			ResponseHeaderTimeout: 30 * time.Second,
-		},
+		Transport: util.SharedTransport,
 	}
 	resp, err := client.Get(downloadURL)
 	if err != nil {

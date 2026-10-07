@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"hmd/internal/util"
 )
 
 // ItemType represents the kind of Spotify resource.
@@ -50,7 +52,8 @@ var (
 
 // DefaultHTTPClient provides a timeout-configured client with standard browser User-Agent.
 var DefaultHTTPClient = &http.Client{
-	Timeout: 15 * time.Second,
+	Transport: util.SharedTransport,
+	Timeout:   15 * time.Second,
 }
 
 const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -92,13 +95,7 @@ func Resolve(ctx context.Context, rawURL string) (*CollectionInfo, error) {
 		req, err := http.NewRequestWithContext(ctx, "HEAD", rawURL, nil)
 		if err == nil {
 			req.Header.Set("User-Agent", defaultUserAgent)
-			clientNoRedirect := &http.Client{
-				Timeout: 10 * time.Second,
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
-				},
-			}
-			resp, err := clientNoRedirect.Do(req)
+			resp, err := util.SharedNoRedirectClient.Do(req)
 			if err == nil {
 				loc := resp.Header.Get("Location")
 				_ = resp.Body.Close()

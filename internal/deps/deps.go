@@ -10,15 +10,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"hmd/internal/util"
 )
 
 // Paths to binary tools.
 type BinaryPaths struct {
-	YtDlp  string
-	FFmpeg string
+	YtDlp     string
+	FFmpeg    string
+	GalleryDl string
 }
 
 // ProgressCallback reports download progress for a dependency.
@@ -30,6 +30,14 @@ func GetBinaryNames() (string, string) {
 		return "yt-dlp.exe", "ffmpeg.exe"
 	}
 	return "yt-dlp", "ffmpeg"
+}
+
+// GetGalleryDlBinaryName returns the executable name for gallery-dl depending on OS.
+func GetGalleryDlBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "gallery-dl.exe"
+	}
+	return "gallery-dl"
 }
 
 // GetYtDlpDownloadURL returns the download URL for yt-dlp according to the runtime OS.
@@ -44,12 +52,23 @@ func GetYtDlpDownloadURL() string {
 	}
 }
 
-// FindBinaries locates yt-dlp and ffmpeg either in PATH or in the app's bin directory.
+// GetGalleryDlDownloadURL returns the download URL for gallery-dl standalone binary.
+func GetGalleryDlDownloadURL() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "https://codeberg.org/mikf/gallery-dl/releases/download/v1.32.15/gallery-dl.exe"
+	default:
+		return "https://codeberg.org/mikf/gallery-dl/releases/download/v1.32.15/gallery-dl.bin"
+	}
+}
+
+// FindBinaries locates yt-dlp, ffmpeg, and gallery-dl either in PATH or in the app's bin directory.
 func FindBinaries() (BinaryPaths, []string) {
 	var paths BinaryPaths
 	var missing []string
 
 	ytName, ffName := GetBinaryNames()
+	gName := GetGalleryDlBinaryName()
 	binDir, _ := util.GetBinDir()
 
 	// 1. Find yt-dlp: check binDir candidate first before exec.LookPath
@@ -82,6 +101,19 @@ func FindBinaries() (BinaryPaths, []string) {
 	}
 	if paths.FFmpeg == "" {
 		missing = append(missing, "ffmpeg")
+	}
+
+	// 3. Find gallery-dl: check binDir candidate first before exec.LookPath
+	if binDir != "" {
+		candidate := filepath.Join(binDir, gName)
+		if fileExists(candidate) {
+			paths.GalleryDl = candidate
+		}
+	}
+	if paths.GalleryDl == "" {
+		if p, err := exec.LookPath(gName); err == nil {
+			paths.GalleryDl = p
+		}
 	}
 
 	return paths, missing
@@ -141,6 +173,29 @@ func UpdateYtDlp(cb ProgressCallback) (string, error) {
 	return destPath, nil
 }
 
+// EnsureGalleryDl checks if gallery-dl is present, and downloads it if missing.
+func EnsureGalleryDl(cb ProgressCallback) (string, error) {
+	paths, _ := FindBinaries()
+	if paths.GalleryDl != "" {
+		return paths.GalleryDl, nil
+	}
+
+	binDir, err := util.GetBinDir()
+	if err != nil {
+		return "", fmt.Errorf("không thể tạo thư mục lưu công cụ: %w", err)
+	}
+
+	gName := GetGalleryDlBinaryName()
+	destPath := filepath.Join(binDir, gName)
+	downloadURL := GetGalleryDlDownloadURL()
+
+	if err := downloadFile(downloadURL, destPath, "gallery-dl", cb); err != nil {
+		return "", fmt.Errorf("lỗi khi tải gallery-dl: %w", err)
+	}
+	_ = os.Chmod(destPath, 0755)
+	return destPath, nil
+}
+
 // EnsureDependencies checks and downloads any missing tools (yt-dlp, ffmpeg).
 func EnsureDependencies(cb ProgressCallback) (BinaryPaths, error) {
 	paths, missing := FindBinaries()
@@ -191,9 +246,7 @@ func EnsureDependencies(cb ProgressCallback) (BinaryPaths, error) {
 
 func downloadToFile(url, filePath, itemName string, cb ProgressCallback) error {
 	client := &http.Client{
-		Transport: &http.Transport{
-			ResponseHeaderTimeout: 30 * time.Second,
-		},
+		Transport: util.SharedTransport,
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

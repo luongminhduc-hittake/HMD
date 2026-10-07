@@ -7,7 +7,7 @@
 ## ✨ Điểm nổi bật
 
 - **Tự động nhận link Clipboard**: Vừa mở app lên là link media đã được tự động điền sẵn, chỉ cần bấm `Enter` để tải.
-- **Hỗ trợ đa nền tảng**: Tải mượt mà từ **YouTube**, **TikTok**, **Facebook**, **Instagram**, **X (Twitter)**, **SoundCloud**, **Spotify**, **Reddit**, **Threads**, **Pinterest**... Với các trang web khác, bạn cứ thử dán link vào xem tải được không nhé (hỗ trợ hơn 1.800+ trang web qua backend `yt-dlp`)!
+- **Hỗ trợ đa nền tảng**: Tải mượt mà từ **YouTube**, **TikTok**, **Facebook**, **Instagram**, **X (Twitter)**, **SoundCloud**, **Spotify**, **Reddit**, **Pinterest**... Với các trang web khác, bạn cứ thử dán link vào xem tải được không nhé (hỗ trợ hơn 1.800+ trang web qua backend `yt-dlp`)!
 - **Tải Spotify Album/Playlist đa luồng**: Tải song song 3 bài cùng lúc kèm nhúng ảnh bìa gốc Spotify và ID3 tags, tự động gom trọn vẹn vào thư mục riêng.
 - **1 file chạy duy nhất**: Tải về là dùng ngay (Windows `hmd.exe`, Linux `hmd`), nhúng sẵn Icon đẹp mắt, tự động chuẩn bị `yt-dlp` và `ffmpeg` trong nền.
 - **Hỗ trợ Cookies trình duyệt**: Nhấn `Ctrl+B` ở màn hình chính để nạp cookies từ Chrome, Firefox, Edge, Brave tải video riêng tư hoặc giới hạn độ tuổi.
@@ -31,7 +31,7 @@ Tải bản mới nhất tại [GitHub Releases](https://github.com/luongminhduc
 
 ## 🚀 Cách dùng
 
-1. Sao chép đường link video/nhạc trên **YouTube**, **TikTok**, **Facebook**, **Instagram**, **X**, **SoundCloud**, **Spotify**, **Reddit**, **Threads**, **Pinterest**... (hoặc bất kỳ trang web nào khác, cứ thử dán link xem tải được không).
+1. Sao chép đường link video/nhạc trên **YouTube**, **TikTok**, **Facebook**, **Instagram**, **X**, **SoundCloud**, **Spotify**, **Reddit**, **Pinterest**... (hoặc bất kỳ trang web nào khác, cứ thử dán link xem tải được không).
 2. Mở `hmd` (nhấp đúp trên Windows hoặc gõ `hmd` trên Linux) — link vừa copy sẽ được tự động điền sẵn!
 3. Nhấn `Ctrl+B` để chọn Cookies trình duyệt nếu cần. Nhấn `Ctrl+O` nếu muốn đổi thư mục lưu. Nhấn `Ctrl+Y` để cập nhật yt-dlp khi YouTube thay đổi.
 4. Nhấn `Enter`.

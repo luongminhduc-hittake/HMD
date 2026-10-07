@@ -87,7 +87,13 @@ func OpenFolder(targetPath string) error {
 	default:
 		cmd = exec.Command("xdg-open", "--", folder)
 	}
-	return cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() {
+		_ = cmd.Wait()
+	}()
+	return nil
 }
 
 // FormatBytes formats byte counts into human readable strings (KiB, MiB, GiB).

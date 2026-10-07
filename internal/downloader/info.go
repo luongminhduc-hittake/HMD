@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
+
+	// Resolve redirect/shortlink to canonical URL
+	rawURL = ResolveRedirect(ctx, rawURL)
 
 	// Intercept Spotify URLs to resolve via Spotify native engine
 	if spotify.IsSpotifyURL(rawURL) {
@@ -33,14 +37,16 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		}
 		isPlaylist := coll.Type == spotify.ItemAlbum || coll.Type == spotify.ItemPlaylist
 		return &MediaInfo{
-			Title:         coll.Title,
-			Duration:      durationStr,
-			Uploader:      coll.Subtitle,
-			IsPlaylist:    isPlaylist,
-			RawURL:        rawURL,
-			IsSpotify:     true,
-			SpotifyTracks: coll.Tracks,
-			ThumbnailURL:  coll.CoverURL,
+			Title:            coll.Title,
+			Duration:         durationStr,
+			Uploader:         coll.Subtitle,
+			IsPlaylist:       isPlaylist,
+			RawURL:           rawURL,
+			IsSpotify:        true,
+			SpotifyTracks:    coll.Tracks,
+			ThumbnailURL:     coll.CoverURL,
+			MediaType:        MediaTypeAudio,
+			AvailablePresets: AudioPresets,
 		}, nil
 	}
 
@@ -86,6 +92,8 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 			"--print", "title:%(title)s",
 			"--print", "duration_string:%(duration_string)s",
 			"--print", "uploader:%(uploader)s",
+			"--print", "height:%(height)s",
+			"--print", "vcodec:%(vcodec)s",
 			"--",
 			rawURL,
 		)
@@ -104,6 +112,12 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		if strings.Contains(errStr, "database is locked") {
 			return nil, fmt.Errorf("Trình duyệt đang mở và khóa file cookies. Cậu chủ vui lòng đóng trình duyệt rồi thử lại.")
 		}
+
+		// Fallback to gallery-dl for images, photo galleries, pins, carousels
+		if gInfo, gErr := FetchGalleryInfo(ctx, rawURL, cookiesBrowser...); gErr == nil && gInfo != nil {
+			return gInfo, nil
+		}
+
 		if errStr != "" {
 			return nil, fmt.Errorf("%s", errStr)
 		}
@@ -121,6 +135,9 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		info.Duration = "Playlist"
 		info.Title = "Media Playlist"
 	}
+
+	var vcodec string
+	var maxHeight int
 
 	scanner := bufio.NewScanner(&stdout)
 	for scanner.Scan() {
@@ -141,8 +158,24 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 			if u != "NA" && u != "" {
 				info.Uploader = u
 			}
+		case strings.HasPrefix(line, "height:"):
+			hStr := strings.TrimPrefix(line, "height:")
+			if h, err := strconv.Atoi(hStr); err == nil {
+				maxHeight = h
+			}
+		case strings.HasPrefix(line, "vcodec:"):
+			vcodec = strings.TrimPrefix(line, "vcodec:")
 		}
 	}
+
+	info.MaxHeight = maxHeight
+	platform := DetectPlatform(rawURL)
+	if vcodec == "none" || platform.Name == "SoundCloud" || (vcodec == "" && maxHeight == 0) {
+		info.MediaType = MediaTypeAudio
+	} else {
+		info.MediaType = MediaTypeVideo
+	}
+	info.AvailablePresets = DetermineAvailablePresets(info.MediaType, info.MaxHeight)
 
 	return info, nil
 }

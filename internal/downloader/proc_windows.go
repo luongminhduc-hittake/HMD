@@ -5,11 +5,13 @@ package downloader
 import (
 	"fmt"
 	"os/exec"
+	"time"
 )
 
 // prepareCommand configures process termination on Windows using taskkill /T
 // to ensure child processes (like ffmpeg.exe) are killed when the context is cancelled.
 func prepareCommand(cmd *exec.Cmd) {
+	cmd.WaitDelay = 2 * time.Second
 	cmd.Cancel = func() error {
 		if cmd.Process == nil || cmd.Process.Pid <= 0 {
 			return nil

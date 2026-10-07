@@ -11,6 +11,15 @@ type PlatformInfo struct {
 	Color string
 }
 
+func hasDomain(host string, domains ...string) bool {
+	for _, d := range domains {
+		if host == d || strings.HasSuffix(host, "."+d) {
+			return true
+		}
+	}
+	return false
+}
+
 // DetectPlatform inspects a URL and returns the platform brand name and style color hex.
 func DetectPlatform(rawURL string) PlatformInfo {
 	u, err := url.Parse(rawURL)
@@ -20,29 +29,27 @@ func DetectPlatform(rawURL string) PlatformInfo {
 
 	host := strings.ToLower(u.Host)
 	switch {
-	case strings.Contains(host, "youtube.com") || strings.Contains(host, "youtu.be"):
+	case hasDomain(host, "youtube.com", "youtu.be"):
 		return PlatformInfo{Name: "YouTube", Color: "#FF0000"}
-	case strings.Contains(host, "tiktok.com") || strings.Contains(host, "douyin.com"):
+	case hasDomain(host, "tiktok.com", "douyin.com"):
 		return PlatformInfo{Name: "TikTok", Color: "#00F2FE"}
-	case strings.Contains(host, "facebook.com") || strings.Contains(host, "fb.watch"):
+	case hasDomain(host, "facebook.com", "fb.watch", "fb.me"):
 		return PlatformInfo{Name: "Facebook", Color: "#1877F2"}
-	case strings.Contains(host, "instagram.com"):
+	case hasDomain(host, "instagram.com", "instagr.am"):
 		return PlatformInfo{Name: "Instagram", Color: "#E1306C"}
-	case strings.Contains(host, "twitter.com") || strings.Contains(host, "x.com"):
+	case hasDomain(host, "twitter.com", "x.com", "t.co"):
 		return PlatformInfo{Name: "X / Twitter", Color: "#E7E9EA"}
-	case strings.Contains(host, "soundcloud.com"):
+	case hasDomain(host, "soundcloud.com"):
 		return PlatformInfo{Name: "SoundCloud", Color: "#FF5500"}
-	case strings.Contains(host, "spotify.com"):
+	case hasDomain(host, "spotify.com", "spotify.link"):
 		return PlatformInfo{Name: "Spotify", Color: "#1DB954"}
-	case strings.Contains(host, "reddit.com") || strings.Contains(host, "redd.it"):
+	case hasDomain(host, "reddit.com", "redd.it"):
 		return PlatformInfo{Name: "Reddit", Color: "#FF4500"}
-	case strings.Contains(host, "threads.net") || strings.Contains(host, "threads.com"):
-		return PlatformInfo{Name: "Threads", Color: "#2B2B2B"}
-	case strings.Contains(host, "pinterest.com") || strings.Contains(host, "pin.it"):
+	case hasDomain(host, "pinterest.com", "pin.it"):
 		return PlatformInfo{Name: "Pinterest", Color: "#E60023"}
-	case strings.Contains(host, "bilibili.com"):
+	case hasDomain(host, "bilibili.com", "b23.tv"):
 		return PlatformInfo{Name: "Bilibili", Color: "#00AEEC"}
-	case strings.Contains(host, "vimeo.com"):
+	case hasDomain(host, "vimeo.com"):
 		return PlatformInfo{Name: "Vimeo", Color: "#1AB7EA"}
 	default:
 		return PlatformInfo{Name: "Media", Color: "#05D550"}

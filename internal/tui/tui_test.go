@@ -335,6 +335,96 @@ func TestModelSpotifyPresetAndViews(t *testing.T) {
 	}
 }
 
+func TestModelImagePresetSelection(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateSelectPreset
+	m.MediaInfo = &downloader.MediaInfo{
+		Title:            "Pinterest Sample Photo",
+		Uploader:         "Photographer",
+		IsImage:          true,
+		AvailablePresets: downloader.ImagePresets,
+	}
+	m.AvailablePresets = downloader.ImagePresets
+
+	view := m.View()
+	if !strings.Contains(view, "🖼️") || !strings.Contains(view, "Tác giả: Photographer") {
+		t.Errorf("expected image icon and author label in view, got: %s", view)
+	}
+	if strings.Contains(view, "Cắt đoạn") || strings.Contains(view, "Phụ đề") {
+		t.Errorf("expected trim and subtitle hints to be hidden for images, got: %s", view)
+	}
+
+	// Pressing 's' or 't' should do nothing
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	model2 := m2.(Model)
+	if model2.EnableSubtitles {
+		t.Errorf("subtitles should not be enabled for images")
+	}
+
+	m3, _ := model2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	model3 := m3.(Model)
+	if model3.State == StateInputTrim {
+		t.Errorf("trim input should not be opened for images")
+	}
+
+	// Pressing '2' or down arrow should not change preset index
+	m4, _ := model3.Update(tea.KeyMsg{Type: tea.KeyDown})
+	model4 := m4.(Model)
+	if model4.PresetIndex != 0 {
+		t.Errorf("expected PresetIndex 0, got %d", model4.PresetIndex)
+	}
+
+	m5, _ := model4.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+	model5 := m5.(Model)
+	if model5.PresetIndex != 0 {
+		t.Errorf("expected PresetIndex 0, got %d", model5.PresetIndex)
+	}
+}
+
+func TestModelAvailablePresetsNavigation(t *testing.T) {
+	t.Setenv("HMD_CONFIG_DIR", t.TempDir())
+	m := InitialModel("", "")
+	m.State = StateSelectPreset
+	m.AvailablePresets = []downloader.PresetOption{
+		downloader.PresetOptBestVideo,
+		downloader.PresetOpt1080p,
+		downloader.PresetOpt720p,
+	}
+	m.PresetIndex = 0
+
+	// Navigate down
+	m1, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if m1.(Model).PresetIndex != 1 {
+		t.Errorf("expected PresetIndex 1, got %d", m1.(Model).PresetIndex)
+	}
+
+	// Navigate down to last item
+	m2, _ := m1.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if m2.(Model).PresetIndex != 2 {
+		t.Errorf("expected PresetIndex 2, got %d", m2.(Model).PresetIndex)
+	}
+
+	// Navigate down beyond last item (should stay at 2)
+	m3, _ := m2.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if m3.(Model).PresetIndex != 2 {
+		t.Errorf("expected PresetIndex 2, got %d", m3.(Model).PresetIndex)
+	}
+
+	// Direct number out of range: '4' should be ignored
+	m4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'4'}})
+	if m4.(Model).PresetIndex != 2 {
+		t.Errorf("expected PresetIndex 2, got %d", m4.(Model).PresetIndex)
+	}
+
+	// Direct number in range: '1' should select 0
+	m5, _ := m4.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+	if m5.(Model).PresetIndex != 0 {
+		t.Errorf("expected PresetIndex 0, got %d", m5.(Model).PresetIndex)
+	}
+}
+
+
 
 
 

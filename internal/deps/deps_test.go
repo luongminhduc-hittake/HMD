@@ -32,3 +32,13 @@ func TestGetYtDlpDownloadURL(t *testing.T) {
 		t.Errorf("GetYtDlpDownloadURL returned unexpected URL prefix: %s", url)
 	}
 }
+
+func TestGetGalleryDlDownloadURL(t *testing.T) {
+	url := GetGalleryDlDownloadURL()
+	if url == "" {
+		t.Fatalf("GetGalleryDlDownloadURL returned empty URL")
+	}
+	if !strings.HasPrefix(url, "https://codeberg.org/mikf/gallery-dl/releases/download/") {
+		t.Errorf("GetGalleryDlDownloadURL returned unexpected URL prefix: %s", url)
+	}
+}

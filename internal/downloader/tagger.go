@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -66,7 +65,8 @@ func InjectMetadata(ctx context.Context, ffmpegPath, audioPath string, track spo
 
 	args = append(args, tmpAudioPath)
 
-	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
+	cmd := execCommandContext(ctx, ffmpegPath, args...)
+	prepareCommand(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ffmpeg metadata injection failed: %w (output: %s)", err, string(output))
