@@ -41,3 +41,30 @@ func TestBuildDownloadArgs_CustomFilename(t *testing.T) {
 		t.Errorf("expected absolute path")
 	}
 }
+
+func TestExecuteSpotifyDownload_UnplayableTracks(t *testing.T) {
+	tmpDir := t.TempDir()
+	opts := DownloadOptions{
+		OutputDir:        tmpDir,
+		Title:            "Test Playlist",
+		IsSpotify:        true,
+		ConcurrentTracks: 2,
+		SpotifyTracks: []spotify.TrackInfo{
+			{Title: "Track 1", Artist: "Artist 1", IsPlayable: false},
+			{Title: "Track 2", Artist: "Artist 2", IsPlayable: false},
+		},
+	}
+
+	res, err := ExecuteDownload(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.SkippedCount != 2 {
+		t.Errorf("expected 2 skipped tracks, got %d", res.SkippedCount)
+	}
+	if len(res.FailedTracks) != 2 {
+		t.Errorf("expected 2 failed tracks recorded, got %d", len(res.FailedTracks))
+	}
+}
+

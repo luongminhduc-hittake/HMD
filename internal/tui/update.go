@@ -155,6 +155,7 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		EnableSubtitles:     m.EnableSubtitles,
 		CookiesBrowser:      m.CookiesBrowser,
 		ConcurrentFragments: m.ConcurrentFragments,
+		ConcurrentTracks:    3,
 		MaxRetries:          m.MaxRetries,
 		FragmentRetries:     m.FragmentRetries,
 		IsSpotify:           m.MediaInfo.IsSpotify,

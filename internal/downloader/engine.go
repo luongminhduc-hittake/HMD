@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"hmd/internal/spotify"
 	"hmd/internal/util"
@@ -29,6 +30,7 @@ type DownloadOptions struct {
 	EnableSubtitles     bool
 	CookiesBrowser      string
 	ConcurrentFragments int
+	ConcurrentTracks    int
 	MaxRetries          int
 	FragmentRetries     int
 	IsSpotify           bool
@@ -410,7 +412,7 @@ func executeSpotifyDownload(ctx context.Context, opts DownloadOptions) (*Downloa
 		res, err := executeStandardDownload(ctx, singleOpts)
 		if err != nil || res == nil || res.FilePath == "" {
 			// Tier 2: ytsearch1:...
-			singleOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
+		singleOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
 			res, err = executeStandardDownload(ctx, singleOpts)
 		}
 		if err != nil {
@@ -427,7 +429,7 @@ func executeSpotifyDownload(ctx context.Context, opts DownloadOptions) (*Downloa
 		return res, nil
 	}
 
-	// Multiple tracks / Album / Playlist
+	// Multiple tracks / Album / Playlist (Concurrent Worker Pool)
 	outputDir := opts.OutputDir
 	if outputDir == "" {
 		outputDir = util.GetDefaultDownloadDir()
@@ -438,54 +440,96 @@ func executeSpotifyDownload(ctx context.Context, opts DownloadOptions) (*Downloa
 	_ = os.MkdirAll(outputDir, 0755)
 
 	total := len(opts.SpotifyTracks)
-	downloadedCount := 0
-	skippedCount := 0
-	var failedTracks []string
+	concurrency := opts.ConcurrentTracks
+	if concurrency <= 0 {
+		concurrency = 3
+	}
+	if concurrency > 5 {
+		concurrency = 5
+	}
+	if total < concurrency {
+		concurrency = total
+	}
 
-	for i, track := range opts.SpotifyTracks {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
+	var (
+		mu              sync.Mutex
+		downloadedCount int
+		skippedCount    int
+		completedCount  int
+		failedTracks    []string
+		wg              sync.WaitGroup
+	)
 
-		if !track.IsPlayable {
-			skippedCount++
-			failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (bị khóa bản quyền trên Spotify)", track.Artist, track.Title))
-			continue
-		}
+	jobs := make(chan int, total)
+	for i := 0; i < total; i++ {
+		jobs <- i
+	}
+	close(jobs)
 
-		if opts.OnStatus != nil {
-			opts.OnStatus(fmt.Sprintf("[%d/%d] %s - %s", i+1, total, track.Artist, track.Title))
-		}
-		if opts.OnProgress != nil {
-			opts.OnProgress(ProgressUpdate{
-				Percent:       float64(i) / float64(total) * 100,
-				StatusMessage: fmt.Sprintf("[%d/%d] %s", i+1, total, track.Title),
-			})
-		}
+	for w := 0; w < concurrency; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				if ctx.Err() != nil {
+					return
+				}
+				track := opts.SpotifyTracks[idx]
 
-		trackOpts := opts
-		trackOpts.IsSpotify = false
-		trackOpts.OutputDir = outputDir
-		trackOpts.DownloadPlaylist = false
-		trackOpts.CustomFilename = fmt.Sprintf("%s - %s", track.Artist, track.Title)
+				if !track.IsPlayable {
+					mu.Lock()
+					skippedCount++
+					completedCount++
+					failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (bị khóa bản quyền trên Spotify)", track.Artist, track.Title))
+					mu.Unlock()
+					continue
+				}
 
-		// Tier 1: ytsearch1:... audio
-		trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s audio", track.Artist, track.Title)
-		singleRes, err := executeStandardDownload(ctx, trackOpts)
-		if err != nil || singleRes == nil || singleRes.FilePath == "" {
-			// Tier 2: ytsearch1:...
-			trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
-			singleRes, err = executeStandardDownload(ctx, trackOpts)
-		}
+				mu.Lock()
+				if opts.OnStatus != nil {
+					opts.OnStatus(fmt.Sprintf("[%d/%d] Đang tải: %s - %s", completedCount+1, total, track.Artist, track.Title))
+				}
+				mu.Unlock()
 
-		if err != nil || singleRes == nil || singleRes.FilePath == "" {
-			skippedCount++
-			failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (không tìm thấy trên YouTube)", track.Artist, track.Title))
-			continue
-		}
+				trackOpts := opts
+				trackOpts.IsSpotify = false
+				trackOpts.OutputDir = outputDir
+				trackOpts.DownloadPlaylist = false
+				trackOpts.CustomFilename = fmt.Sprintf("%s - %s", track.Artist, track.Title)
+				trackOpts.OnProgress = nil
 
-		downloadedCount++
-		_ = InjectMetadata(ctx, opts.FFmpegPath, singleRes.FilePath, track)
+				// Tier 1: ytsearch1:... audio
+				trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s audio", track.Artist, track.Title)
+				singleRes, err := executeStandardDownload(ctx, trackOpts)
+				if err != nil || singleRes == nil || singleRes.FilePath == "" {
+					// Tier 2: ytsearch1:...
+					trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
+					singleRes, err = executeStandardDownload(ctx, trackOpts)
+				}
+
+				mu.Lock()
+				completedCount++
+				if err != nil || singleRes == nil || singleRes.FilePath == "" {
+					skippedCount++
+					failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (không tìm thấy trên YouTube)", track.Artist, track.Title))
+				} else {
+					downloadedCount++
+					_ = InjectMetadata(ctx, opts.FFmpegPath, singleRes.FilePath, track)
+				}
+				if opts.OnProgress != nil {
+					opts.OnProgress(ProgressUpdate{
+						Percent:       float64(completedCount) / float64(total) * 100,
+						StatusMessage: fmt.Sprintf("[%d/%d] Đã xong %d bài", completedCount, total, downloadedCount),
+					})
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	return &DownloadResult{
@@ -498,4 +542,3 @@ func executeSpotifyDownload(ctx context.Context, opts DownloadOptions) (*Downloa
 		FailedTracks:    failedTracks,
 	}, nil
 }
-
