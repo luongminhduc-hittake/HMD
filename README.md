@@ -10,12 +10,12 @@
 - **Hỗ trợ đa nền tảng**: Tải mượt mà từ **YouTube**, **TikTok**, **Facebook**, **Instagram**, **X (Twitter)**, **SoundCloud**, **Spotify**, **Reddit**, **Pinterest**... Với các trang web khác, bạn cứ thử dán link vào xem tải được không nhé (hỗ trợ hơn 1.800+ trang web qua backend `yt-dlp`)!
 - **Tải Spotify Album/Playlist đa luồng**: Tải song song 3 bài cùng lúc kèm nhúng ảnh bìa gốc Spotify và ID3 tags, tự động gom trọn vẹn vào thư mục riêng.
 - **1 file chạy duy nhất**: Tải về là dùng ngay (Windows `hmd.exe`, Linux `hmd`), nhúng sẵn Icon đẹp mắt, tự động chuẩn bị `yt-dlp` và `ffmpeg` trong nền.
-- **Hỗ trợ Cookies trình duyệt**: Nhấn `Ctrl+B` ở màn hình chính để nạp cookies từ Chrome, Firefox, Edge, Brave tải video riêng tư hoặc giới hạn độ tuổi.
+- **Hỗ trợ Cookies trình duyệt**: Nhấn `Ctrl+B` ở màn hình chính để nạp cookies từ Chrome, Firefox, Edge, Brave, Zen Browser thông qua cơ chế Multi-Browser Cookie Cascade tải video riêng tư hoặc giới hạn độ tuổi.
 - **Cắt đoạn theo thời gian (Trim)**: Nhấn `t` ở bước chọn định dạng để cắt trích đoạn (VD: `01:20-03:45`), tải nhạc chuông hay highlight siêu nhanh.
 - **Phụ đề mềm đa ngôn ngữ**: Nhấn `s` ở bước chọn định dạng để bật/tắt tự động nhúng phụ đề (`vi, en`).
 - **Lịch sử tải & Cảnh báo trùng lặp**: Nhấn `Ctrl+H` ở màn hình chính để duyệt 100 lượt tải gần nhất; tự động cảnh báo khi dán lại link cũ và bấm `Ctrl+P` để mở tệp ngay.
 - **Tích hợp sâu trên Windows**: Nhấp đúp chạy lần đầu sẽ tự động cài vào máy, tạo biểu tượng Desktop và Start Menu.
-- **Tự động cập nhật**: Nhấn `Ctrl+U` khi có bản mới để nâng cấp ứng dụng; nhấn `Ctrl+Y` để cập nhật yt-dlp mới nhất trực tiếp.
+- **Tự động cập nhật**: Nhấn `Ctrl+U` khi có bản mới để nâng cấp ứng dụng (cơ chế phân tích semver tối ưu hỗ trợ hậu tố hyphen như release hotfix `v3.0.1-hotfix`); nhấn `Ctrl+Y` để cập nhật yt-dlp mới nhất trực tiếp.
 - **9 Định dạng tối ưu**: Best Video, 1080p, 720p, MP3 (320kbps kèm bìa), M4A (gốc AAC), WAV (Lossless PCM), FLAC (Lossless), OPUS (Chất lượng cao), Thumbnail (Ảnh bìa JPG).
 - **Tùy chỉnh thư mục lưu**: Nhấn `Ctrl+O` trên giao diện để chọn thư mục lưu qua hộp thoại hoặc nhập đường dẫn (mặc định: `Downloads/hittakeMD`).
 
