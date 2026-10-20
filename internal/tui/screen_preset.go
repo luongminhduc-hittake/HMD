@@ -130,8 +130,12 @@ func (m Model) viewSelectPlaylist() string {
 			fmt.Sprintf("📑  Tải toàn bộ Album / Danh sách (%d bài hát)", len(m.MediaInfo.SpotifyTracks)),
 		}
 	} else {
+		firstOption := "🎬  Chỉ tải video hiện tại"
+		if m.MediaInfo != nil && m.MediaInfo.Duration == "Playlist" {
+			firstOption = "🎬  Chỉ tải video đầu tiên trong playlist"
+		}
 		options = []string{
-			"🎬  Chỉ tải video hiện tại",
+			firstOption,
 			"📑  Tải toàn bộ danh sách phát (Playlist)",
 		}
 	}

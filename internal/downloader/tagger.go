@@ -81,6 +81,7 @@ func InjectMetadata(ctx context.Context, ffmpegPath, audioPath string, track spo
 }
 
 func downloadTempCover(ctx context.Context, coverURL string) (string, error) {
+	client := &http.Client{Timeout: 8 * time.Second}
 	reqCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
@@ -89,7 +90,7 @@ func downloadTempCover(ctx context.Context, coverURL string) (string, error) {
 		return "", err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -103,12 +104,17 @@ func downloadTempCover(ctx context.Context, coverURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer tmpFile.Close()
+	tmpFileName := tmpFile.Name()
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			_ = os.Remove(tmpFileName)
+		}
+	}()
 
 	if _, err := io.Copy(tmpFile, io.LimitReader(resp.Body, 10*1024*1024)); err != nil {
-		_ = os.Remove(tmpFile.Name())
+		_ = os.Remove(tmpFileName)
 		return "", err
 	}
 
-	return tmpFile.Name(), nil
+	return tmpFileName, nil
 }

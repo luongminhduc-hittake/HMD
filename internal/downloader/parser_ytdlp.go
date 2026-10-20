@@ -94,6 +94,11 @@ func (p *YtDlpParser) FeedLine(line string) {
 		strings.Contains(lowerLine, "private video") ||
 		strings.Contains(lowerLine, "login required") ||
 		strings.Contains(lowerLine, "members-only") ||
+		strings.Contains(lowerLine, "join this channel") ||
+		strings.Contains(lowerLine, "confirm your age") ||
+		strings.Contains(lowerLine, "this content isn't available") ||
+		strings.Contains(lowerLine, "confirm you're not a bot") ||
+		strings.Contains(lowerLine, "confirm you’re not a bot") ||
 		strings.Contains(lowerLine, "cookies are invalid") ||
 		strings.Contains(lowerLine, "could not copy") ||
 		strings.Contains(lowerLine, "unsupported browser specified for cookies") {

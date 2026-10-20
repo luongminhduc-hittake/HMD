@@ -66,14 +66,16 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 			if val == "" {
 				return m, nil
 			}
-			if !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
+			cleanURL, err := util.SanitizeURL(val)
+			if err != nil {
 				m.State = StateError
-				m.ErrorMessage = "Đường dẫn không hợp lệ. Vui lòng nhập link bắt đầu bằng http:// hoặc https://"
+				m.ErrorMessage = err.Error()
 				m.ActionIndex = 0
 				return m, nil
 			}
+			m.Input.SetValue(cleanURL)
 			m.State = StateFetchingInfo
-			return m, fetchInfoCmd(m.Paths.YtDlp, val, m.CookiesBrowser)
+			return m, fetchInfoCmd(m.Paths.YtDlp, cleanURL, m.CookiesBrowser)
 		case "esc":
 			if m.Input.Value() != "" {
 				m.Input.SetValue("")

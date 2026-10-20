@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -23,8 +24,11 @@ func TestIsRedirectURL(t *testing.T) {
 		{"https://b23.tv/abc123", true},
 		{"https://t.co/xyz123", true},
 		{"https://redd.it/12345", true},
-		{"https://youtu.be/dQw4w9WgXcQ", true},
+		{"https://v.douyin.com/i8xxxx/", true},
+		{"https://www.instagram.com/share/p/123/", true},
+		{"https://bit.ly/12345", true},
 		{"https://spotify.link/abc123", true},
+		{"https://youtu.be/dQw4w9WgXcQ", false}, // Handled locally without network request
 		{"https://www.youtube.com/watch?v=dQw4w9WgXcQ", false},
 		{"https://www.facebook.com/watch/?v=123", false},
 		{"https://example.com/video.mp4", false},
@@ -57,5 +61,12 @@ func TestResolveRedirectMock(t *testing.T) {
 	unrelatedURL := redirectServer.URL + "/something"
 	if got := ResolveRedirect(ctx, unrelatedURL); got != unrelatedURL {
 		t.Errorf("expected %q, got %q", unrelatedURL, got)
+	}
+}
+
+func TestResolveRedirect_YouTubeShort(t *testing.T) {
+	got := ResolveRedirect(context.Background(), "https://youtu.be/dQw4w9WgXcQ?list=PL123&t=10")
+	if !strings.Contains(got, "v=dQw4w9WgXcQ") || !strings.Contains(got, "www.youtube.com/watch") {
+		t.Errorf("expected youtube.com/watch URL with v=, got: %s", got)
 	}
 }

@@ -88,7 +88,10 @@ func startSelfUpdateCmd(assetURL string) (tea.Cmd, chan tea.Msg) {
 			default:
 			}
 		})
-		ch <- msgUpdateFinished{err: err}
+		select {
+		case ch <- msgUpdateFinished{err: err}:
+		default:
+		}
 		close(ch)
 	}()
 	return waitForChannel(ch), ch
@@ -103,7 +106,10 @@ func updateYtDlpCmd() (tea.Cmd, chan updateProgressMsg) {
 			default:
 			}
 		})
-		ch <- msgYtDlpUpdateFinished{path: newPath, err: err}
+		select {
+		case ch <- msgYtDlpUpdateFinished{path: newPath, err: err}:
+		default:
+		}
 		close(ch)
 	}()
 	return waitForChannel(ch), ch
@@ -183,14 +189,22 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		},
 	}
 
-	go func() {
-		res, err := downloader.ExecuteDownload(ctx, opts)
+go func() {
+	res, err := downloader.ExecuteDownload(ctx, opts)
+	select {
+	case <-ctx.Done():
+	case ch <- msgDownloadCompleted{result: res, err: err}:
+	default:
 		select {
-		case <-ctx.Done():
-		case ch <- msgDownloadCompleted{result: res, err: err}:
+		case <-ch:
+		default:
 		}
-		close(ch)
-	}()
-
+		select {
+		case ch <- msgDownloadCompleted{result: res, err: err}:
+		default:
+		}
+	}
+	close(ch)
+}()
 	return waitForChannel(ch), ch
 }

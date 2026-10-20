@@ -37,20 +37,40 @@ func IsRedirectURL(rawURL string) bool {
 	return strings.Contains(host, "pin.it") ||
 		strings.Contains(host, "vt.tiktok.com") ||
 		strings.Contains(host, "vm.tiktok.com") ||
+		strings.Contains(host, "v.douyin.com") ||
 		(strings.Contains(host, "tiktok.com") && strings.HasPrefix(path, "/t/")) ||
 		strings.Contains(host, "fb.watch") ||
 		strings.Contains(host, "fb.me") ||
 		(strings.Contains(host, "facebook.com") && strings.HasPrefix(path, "/share")) ||
+		(strings.Contains(host, "instagram.com") && strings.HasPrefix(path, "/share")) ||
+		strings.Contains(host, "threads.net") ||
 		strings.Contains(host, "b23.tv") ||
 		strings.Contains(host, "t.co") ||
 		strings.Contains(host, "redd.it") ||
-		strings.Contains(host, "youtu.be") ||
-		strings.Contains(host, "spotify.link")
+		strings.Contains(host, "spotify.link") ||
+		strings.Contains(host, "bit.ly") ||
+		strings.Contains(host, "tinyurl.com") ||
+		strings.Contains(host, "cutt.ly") ||
+		strings.Contains(host, "s.id")
 }
 
 // ResolveRedirect follows HTTP redirects for shortened or sharing URLs to get the canonical URL.
 // If the URL is not a known redirect URL or resolution fails, rawURL is returned unchanged.
 func ResolveRedirect(ctx context.Context, rawURL string) string {
+	// 1. Instant local canonicalization for youtu.be (0ms network cost, preserves v= param)
+	if u, err := url.Parse(rawURL); err == nil && strings.Contains(strings.ToLower(u.Host), "youtu.be") {
+		videoID := strings.Trim(u.Path, "/")
+		if videoID != "" && !strings.Contains(videoID, "/") {
+			q := u.Query()
+			q.Set("v", videoID)
+			u.Scheme = "https"
+			u.Host = "www.youtube.com"
+			u.Path = "/watch"
+			u.RawQuery = q.Encode()
+			return u.String()
+		}
+	}
+
 	if !IsRedirectURL(rawURL) {
 		return rawURL
 	}

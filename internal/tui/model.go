@@ -120,7 +120,7 @@ func InitialModel(customOutputDir, initialURL string, customCookies ...string) M
 		dup = util.FindHistoryInEntries(hist, initialURL)
 	}
 	ti.Focus()
-	ti.CharLimit = 512
+	ti.CharLimit = 4096
 	ti.Width = 60
 
 	di := textinput.New()

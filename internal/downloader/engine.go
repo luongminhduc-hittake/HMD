@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -98,7 +99,11 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 	if opts.CookiesBrowser != "" {
 		cookieArg := resolveCookieArg(opts.CookiesBrowser)
 		if cookieArg != "" && util.IsAllowedBrowser(cookieArg) {
-			args = append(args, "--cookies-from-browser", cookieArg)
+			if strings.HasSuffix(strings.ToLower(cookieArg), ".txt") {
+				args = append(args, "--cookies", cookieArg)
+			} else {
+				args = append(args, "--cookies-from-browser", cookieArg)
+			}
 		}
 	}
 
@@ -115,7 +120,11 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 			"--skip-playlist-after-errors", "infinite",
 		)
 	} else {
-		args = append(args, "--no-playlist")
+		if isPurePlaylistURL(opts.URL) {
+			args = append(args, "--playlist-items", "1")
+		} else {
+			args = append(args, "--no-playlist")
+		}
 	}
 
 	// Apply presets
@@ -215,4 +224,14 @@ func resolveCookieArg(pref string) string {
 		return cands[0].CookieArg
 	}
 	return pref
+}
+
+func isPurePlaylistURL(rawURL string) bool {
+	if u, err := url.Parse(rawURL); err == nil {
+		q := u.Query()
+		if (q.Get("list") != "" || strings.Contains(u.Path, "playlist")) && q.Get("v") == "" {
+			return true
+		}
+	}
+	return false
 }

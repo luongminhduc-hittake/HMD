@@ -38,7 +38,11 @@ func FetchGalleryInfo(ctx context.Context, rawURL string, cookiesBrowser ...stri
 	if cookies != "" {
 		cookieArg := resolveCookieArg(cookies)
 		if cookieArg != "" && util.IsAllowedBrowser(cookieArg) {
-			args = append(args, "--cookies-from-browser", cookieArg)
+			if strings.HasSuffix(strings.ToLower(cookieArg), ".txt") {
+				args = append(args, "--cookies", cookieArg)
+			} else {
+				args = append(args, "--cookies-from-browser", cookieArg)
+			}
 		}
 	}
 	args = append(args, "--", rawURL)
@@ -167,7 +171,11 @@ func executeGalleryDlDownload(ctx context.Context, opts DownloadOptions) (*Downl
 	if opts.CookiesBrowser != "" {
 		cookieArg := resolveCookieArg(opts.CookiesBrowser)
 		if cookieArg != "" && util.IsAllowedBrowser(cookieArg) {
-			args = append(args, "--cookies-from-browser", cookieArg)
+			if strings.HasSuffix(strings.ToLower(cookieArg), ".txt") {
+				args = append(args, "--cookies", cookieArg)
+			} else {
+				args = append(args, "--cookies-from-browser", cookieArg)
+			}
 		}
 	}
 	args = append(args, "--", opts.URL)

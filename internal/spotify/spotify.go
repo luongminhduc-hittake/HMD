@@ -126,7 +126,7 @@ func Resolve(ctx context.Context, rawURL string) (*CollectionInfo, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("nội dung Spotify không tồn tại hoặc đã bị xóa (404)")
+		return nil, fmt.Errorf("nội dung Spotify không tồn tại hoặc đã bị xóa (404). Nếu đây là Playlist Riêng Tư (Private), vui lòng chuyển sang Công Khai (Public) trên Spotify")
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("máy chủ Spotify phản hồi mã lỗi HTTP %d", resp.StatusCode)
@@ -290,7 +290,13 @@ type oembedResponse struct {
 }
 
 func fetchOEmbed(ctx context.Context, rawURL string) (*CollectionInfo, error) {
-	oembedURL := fmt.Sprintf("https://open.spotify.com/oembed?url=%s", url.QueryEscape(rawURL))
+	effectiveURL := rawURL
+	if strings.HasPrefix(effectiveURL, "spotify:") {
+		if itemType, id, err := ParseURL(effectiveURL); err == nil {
+			effectiveURL = fmt.Sprintf("https://open.spotify.com/%s/%s", itemType, id)
+		}
+	}
+	oembedURL := fmt.Sprintf("https://open.spotify.com/oembed?url=%s", url.QueryEscape(effectiveURL))
 	req, err := http.NewRequestWithContext(ctx, "GET", oembedURL, nil)
 	if err != nil {
 		return nil, err

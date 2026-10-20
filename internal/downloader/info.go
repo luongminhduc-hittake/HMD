@@ -86,9 +86,7 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 			}
 			stdoutStr, stderrStr, lastErr = sOut, sErr, err
 			errStr := strings.TrimSpace(stderrStr)
-			isRetryable := strings.Contains(errStr, "database is locked") ||
-				strings.Contains(errStr, "Sign in") ||
-				strings.Contains(errStr, "unsupported browser specified for cookies")
+			isRetryable := isAuthOrLockError(errStr)
 			if isRetryable && i+1 < len(candidates) {
 				continue
 			}
@@ -96,6 +94,18 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		}
 	} else {
 		stdoutStr, stderrStr, lastErr = executeFetchInfoCmd(ctx, ytdlpPath, rawURL, isPurePlaylist, "")
+		if lastErr != nil && isAuthOrLockError(stderrStr) {
+			// Auto-retry with detected cookies if installed
+			autoCands := util.GetCookieCascade("auto")
+			for _, cand := range autoCands {
+				sOut, _, err := executeFetchInfoCmd(ctx, ytdlpPath, rawURL, isPurePlaylist, cand.CookieArg)
+				if err == nil {
+					stdoutStr = sOut
+					lastErr = nil
+					break
+				}
+			}
+		}
 	}
 
 	if lastErr != nil {
@@ -107,6 +117,10 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 		// Fallback to gallery-dl for images, photo galleries, pins, carousels
 		if gInfo, gErr := FetchGalleryInfo(ctx, rawURL, cookiesBrowser...); gErr == nil && gInfo != nil {
 			return gInfo, nil
+		}
+
+		if isAuthOrLockError(errStr) {
+			return nil, fmt.Errorf("Nội dung này là riêng tư hoặc yêu cầu đăng nhập. Cậu chủ vui lòng nhấn Ctrl+B để bật Cookies trình duyệt (Zen/Chrome) rồi thử lại.")
 		}
 
 		if errStr != "" {
@@ -174,7 +188,11 @@ func FetchInfo(ytdlpPath, rawURL string, cookiesBrowser ...string) (*MediaInfo, 
 func executeFetchInfoCmd(ctx context.Context, ytdlpPath, rawURL string, isPurePlaylist bool, cookieArg string) (string, string, error) {
 	args := []string{"--no-config"}
 	if cookieArg != "" && util.IsAllowedBrowser(cookieArg) {
-		args = append(args, "--cookies-from-browser", cookieArg)
+		if strings.HasSuffix(strings.ToLower(cookieArg), ".txt") {
+			args = append(args, "--cookies", cookieArg)
+		} else {
+			args = append(args, "--cookies-from-browser", cookieArg)
+		}
 	}
 
 	if isPurePlaylist {
@@ -213,4 +231,20 @@ func executeFetchInfoCmd(ctx context.Context, ytdlpPath, rawURL string, isPurePl
 
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+func isAuthOrLockError(errStr string) bool {
+	lower := strings.ToLower(errStr)
+	return strings.Contains(lower, "database is locked") ||
+		strings.Contains(lower, "sign in") ||
+		strings.Contains(lower, "login required") ||
+		strings.Contains(lower, "private video") ||
+		strings.Contains(lower, "confirm your age") ||
+		strings.Contains(lower, "members-only") ||
+		strings.Contains(lower, "join this channel") ||
+		strings.Contains(lower, "this content isn't available") ||
+		strings.Contains(lower, "confirm you're not a bot") ||
+		strings.Contains(lower, "confirm you’re not a bot") ||
+		strings.Contains(lower, "cookies are invalid") ||
+		strings.Contains(lower, "unsupported browser specified for cookies")
 }

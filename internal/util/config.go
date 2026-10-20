@@ -25,16 +25,20 @@ var AllowedBrowsers = map[string]bool{
 	"edge":      true,
 	"chromium":  true,
 	"opera":     true,
+	"opera-gx":  true,
 	"vivaldi":   true,
 	"zen":       true,
 	"floorp":    true,
 	"librewolf": true,
 	"waterfox":  true,
 	"coccoc":    true,
+	"arc":       true,
+	"safari":    true,
+	"yandex":    true,
 }
 
-// IsAllowedBrowser checks if the given browser name is in the security allowlist
-// or matches safe custom profile syntax like "firefox:/path".
+// IsAllowedBrowser checks if the given browser name is in the security allowlist,
+// matches safe custom profile syntax like "firefox:/path", or is a direct cookie file (.txt).
 func IsAllowedBrowser(browser string) bool {
 	b := strings.TrimSpace(browser)
 	if b == "" {
@@ -42,6 +46,9 @@ func IsAllowedBrowser(browser string) bool {
 	}
 	if AllowedBrowsers[strings.ToLower(b)] {
 		return true
+	}
+	if strings.HasSuffix(strings.ToLower(b), ".txt") {
+		return !strings.ContainsAny(b, ";|&$`\r\n\t")
 	}
 	for _, prefix := range []string{"firefox:", "chromium:"} {
 		if strings.HasPrefix(b, prefix) {

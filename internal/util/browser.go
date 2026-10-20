@@ -125,13 +125,22 @@ func ScanInstalledBrowsers() []DetectedBrowser {
 		if b := checkChromiumBrowser(filepath.Join(localAppData, "Microsoft", "Edge", "User Data"), "edge", "Edge", "edge"); b != nil {
 			candidates = append(candidates, *b)
 		}
+		if b := checkChromiumBrowser(filepath.Join(localAppData, "Arc", "User Data"), "arc", "Arc Browser", "arc"); b != nil {
+			candidates = append(candidates, *b)
+		}
 		if b := checkChromiumBrowser(filepath.Join(localAppData, "Vivaldi", "User Data"), "vivaldi", "Vivaldi", "vivaldi"); b != nil {
 			candidates = append(candidates, *b)
 		}
 		if b := checkChromiumBrowser(filepath.Join(appData, "Opera Software", "Opera Stable"), "opera", "Opera", "opera"); b != nil {
 			candidates = append(candidates, *b)
 		}
+		if b := checkChromiumBrowser(filepath.Join(appData, "Opera Software", "Opera GX Stable"), "opera-gx", "Opera GX", "opera"); b != nil {
+			candidates = append(candidates, *b)
+		}
 		if b := checkChromiumBrowser(filepath.Join(localAppData, "CocCoc", "Browser", "User Data"), "coccoc", "Cốc Cốc", "chromium"); b != nil {
+			candidates = append(candidates, *b)
+		}
+		if b := checkChromiumBrowser(filepath.Join(localAppData, "Yandex", "YandexBrowser", "User Data"), "yandex", "Yandex", "yandex"); b != nil {
 			candidates = append(candidates, *b)
 		}
 	} else {
@@ -145,22 +154,38 @@ func ScanInstalledBrowsers() []DetectedBrowser {
 			candidates = append(candidates, findGeckoProfiles(filepath.Join(home, "Library", "Application Support", "zen", "Profiles"), "zen", "Zen Browser")...)
 		}
 
-		// Floorp & LibreWolf
+		// Floorp & LibreWolf & Waterfox
 		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".floorp"), "floorp", "Floorp")...)
+		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".var", "app", "one.ablaze.floorp", ".floorp"), "floorp", "Floorp (Flatpak)")...)
 		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".librewolf"), "librewolf", "LibreWolf")...)
+		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".var", "app", "io.gitlab.librewolf-community", ".librewolf"), "librewolf", "LibreWolf (Flatpak)")...)
+		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".waterfox"), "waterfox", "Waterfox")...)
 
 		// Firefox
 		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".mozilla", "firefox"), "firefox", "Firefox")...)
 		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, "snap", "firefox", "common", ".mozilla", "firefox"), "firefox", "Firefox (Snap)")...)
+		candidates = append(candidates, findGeckoProfiles(filepath.Join(home, ".var", "app", "org.mozilla.firefox", ".mozilla", "firefox"), "firefox", "Firefox (Flatpak)")...)
 
 		// Chromium variants
 		if b := checkChromiumBrowser(filepath.Join(configDir, "google-chrome"), "chrome", "Chrome", "chrome"); b != nil {
 			candidates = append(candidates, *b)
 		}
+		if b := checkChromiumBrowser(filepath.Join(home, ".var", "app", "com.google.Chrome", "config", "google-chrome"), "chrome", "Chrome (Flatpak)", "chrome"); b != nil {
+			candidates = append(candidates, *b)
+		}
 		if b := checkChromiumBrowser(filepath.Join(configDir, "BraveSoftware", "Brave-Browser"), "brave", "Brave", "brave"); b != nil {
 			candidates = append(candidates, *b)
 		}
+		if b := checkChromiumBrowser(filepath.Join(home, ".var", "app", "com.brave.Browser", "config", "BraveSoftware", "Brave-Browser"), "brave", "Brave (Flatpak)", "brave"); b != nil {
+			candidates = append(candidates, *b)
+		}
+		if b := checkChromiumBrowser(filepath.Join(home, "snap", "brave", "current", ".config", "BraveSoftware", "Brave-Browser"), "brave", "Brave (Snap)", "brave"); b != nil {
+			candidates = append(candidates, *b)
+		}
 		if b := checkChromiumBrowser(filepath.Join(configDir, "microsoft-edge"), "edge", "Edge", "edge"); b != nil {
+			candidates = append(candidates, *b)
+		}
+		if b := checkChromiumBrowser(filepath.Join(home, ".var", "app", "com.microsoft.Edge", "config", "microsoft-edge"), "edge", "Edge (Flatpak)", "edge"); b != nil {
 			candidates = append(candidates, *b)
 		}
 		if b := checkChromiumBrowser(filepath.Join(configDir, "vivaldi"), "vivaldi", "Vivaldi", "vivaldi"); b != nil {
@@ -172,6 +197,45 @@ func ScanInstalledBrowsers() []DetectedBrowser {
 		if b := checkChromiumBrowser(filepath.Join(configDir, "chromium"), "chromium", "Chromium", "chromium"); b != nil {
 			candidates = append(candidates, *b)
 		}
+		if b := checkChromiumBrowser(filepath.Join(home, "snap", "chromium", "current", ".config", "chromium"), "chromium", "Chromium (Snap)", "chromium"); b != nil {
+			candidates = append(candidates, *b)
+		}
+		if b := checkChromiumBrowser(filepath.Join(configDir, "coccoc"), "coccoc", "Cốc Cốc", "chromium"); b != nil {
+			candidates = append(candidates, *b)
+		}
+
+		// macOS Specifics
+		if runtime.GOOS == "darwin" {
+			appSupport := filepath.Join(home, "Library", "Application Support")
+			candidates = append(candidates, DetectedBrowser{
+				ID:        "safari",
+				Name:      "Safari",
+				CookieArg: "safari",
+			})
+			if b := checkChromiumBrowser(filepath.Join(appSupport, "Arc", "User Data"), "arc", "Arc Browser", "arc"); b != nil {
+				candidates = append(candidates, *b)
+			}
+			if b := checkChromiumBrowser(filepath.Join(appSupport, "Google", "Chrome"), "chrome", "Chrome", "chrome"); b != nil {
+				candidates = append(candidates, *b)
+			}
+			if b := checkChromiumBrowser(filepath.Join(appSupport, "BraveSoftware", "Brave-Browser"), "brave", "Brave", "brave"); b != nil {
+				candidates = append(candidates, *b)
+			}
+			if b := checkChromiumBrowser(filepath.Join(appSupport, "Microsoft Edge"), "edge", "Edge", "edge"); b != nil {
+				candidates = append(candidates, *b)
+			}
+		}
+	}
+
+	// Check for local cookies.txt in current directory
+	if fi, err := os.Stat("cookies.txt"); err == nil && !fi.IsDir() {
+		absPath, _ := filepath.Abs("cookies.txt")
+		candidates = append(candidates, DetectedBrowser{
+			ID:        "file",
+			Name:      "cookies.txt (Local File)",
+			CookieArg: absPath,
+			LastUsed:  fi.ModTime(),
+		})
 	}
 
 	// De-duplicate by ID, keeping the one with latest LastUsed
@@ -232,4 +296,36 @@ func GetCookieCascade(preference string) []DetectedBrowser {
 	}
 	cascade = append(cascade, rest...)
 	return cascade
+}
+
+// CloneLockedGeckoProfile copies cookies.sqlite and WAL files from an active profile
+// into a temporary directory to bypass SQLite lock without closing the browser.
+func CloneLockedGeckoProfile(cookieArg string) (string, func()) {
+	if !strings.HasPrefix(cookieArg, "firefox:") {
+		return cookieArg, func() {}
+	}
+	srcDir := strings.TrimPrefix(cookieArg, "firefox:")
+	srcDB := filepath.Join(srcDir, "cookies.sqlite")
+	if _, err := os.Stat(srcDB); err != nil {
+		return cookieArg, func() {}
+	}
+
+	tempDir, err := os.MkdirTemp("", "hmd_cookie_snap_*")
+	if err != nil {
+		return cookieArg, func() {}
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+
+	// Copy cookies.sqlite, cookies.sqlite-wal, cookies.sqlite-shm
+	for _, ext := range []string{"", "-wal", "-shm"} {
+		fName := "cookies.sqlite" + ext
+		srcFile := filepath.Join(srcDir, fName)
+		if data, err := os.ReadFile(srcFile); err == nil {
+			_ = os.WriteFile(filepath.Join(tempDir, fName), data, 0600)
+		}
+	}
+
+	return "firefox:" + tempDir, cleanup
 }

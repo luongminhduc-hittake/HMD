@@ -34,6 +34,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ActionIndex = 0
 				return m, nil
 			}
+			if m.DownloadCancel != nil {
+				m.DownloadCancel()
+			}
 			return m, tea.Quit
 		}
 

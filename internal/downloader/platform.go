@@ -22,6 +22,9 @@ func hasDomain(host string, domains ...string) bool {
 
 // DetectPlatform inspects a URL and returns the platform brand name and style color hex.
 func DetectPlatform(rawURL string) PlatformInfo {
+	if strings.HasPrefix(rawURL, "spotify:") {
+		return PlatformInfo{Name: "Spotify", Color: "#1DB954"}
+	}
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Host == "" {
 		return PlatformInfo{Name: "Media", Color: "#05D550"}
@@ -31,12 +34,14 @@ func DetectPlatform(rawURL string) PlatformInfo {
 	switch {
 	case hasDomain(host, "youtube.com", "youtu.be"):
 		return PlatformInfo{Name: "YouTube", Color: "#FF0000"}
-	case hasDomain(host, "tiktok.com", "douyin.com"):
+	case hasDomain(host, "tiktok.com", "douyin.com", "v.douyin.com"):
 		return PlatformInfo{Name: "TikTok", Color: "#00F2FE"}
 	case hasDomain(host, "facebook.com", "fb.watch", "fb.me"):
 		return PlatformInfo{Name: "Facebook", Color: "#1877F2"}
 	case hasDomain(host, "instagram.com", "instagr.am"):
 		return PlatformInfo{Name: "Instagram", Color: "#E1306C"}
+	case hasDomain(host, "threads.net"):
+		return PlatformInfo{Name: "Threads", Color: "#000000"}
 	case hasDomain(host, "twitter.com", "x.com", "t.co"):
 		return PlatformInfo{Name: "X / Twitter", Color: "#E7E9EA"}
 	case hasDomain(host, "soundcloud.com"):

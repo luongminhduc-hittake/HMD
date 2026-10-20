@@ -117,10 +117,14 @@ func runSpotifyDownload(ctx context.Context, opts DownloadOptions) (*DownloadRes
 				// Tier 1: ytsearch1:... audio
 				trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s audio", track.Artist, track.Title)
 				singleRes, err := runStandardDownload(ctx, trackOpts)
-				if err != nil || singleRes == nil || singleRes.FilePath == "" {
+				if err != nil || singleRes == nil || singleRes.FilePath == "" && ctx.Err() == nil {
 					// Tier 2: ytsearch1:...
 					trackOpts.URL = fmt.Sprintf("ytsearch1:%s - %s", track.Artist, track.Title)
 					singleRes, err = runStandardDownload(ctx, trackOpts)
+				}
+
+				if ctx.Err() != nil {
+					return
 				}
 
 				mu.Lock()

@@ -46,6 +46,13 @@ func main() {
 			i++
 			continue
 		}
+		if strings.HasPrefix(arg, "-cookies=") || strings.HasPrefix(arg, "--cookies=") {
+			parts := strings.SplitN(arg, "=", 2)
+			if len(parts) == 2 {
+				cookiesArg = parts[1]
+			}
+			continue
+		}
 		if !strings.HasPrefix(arg, "-") && initialURL == "" {
 			initialURL = arg
 		}

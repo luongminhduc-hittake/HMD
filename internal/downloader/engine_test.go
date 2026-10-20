@@ -61,6 +61,18 @@ func TestBuildDownloadArgsPresets(t *testing.T) {
 		t.Errorf("expected --yes-playlist, got %s", playlistArgs)
 	}
 
+	purePlaylistOpts := DownloadOptions{
+		URL:              "https://www.youtube.com/playlist?list=PL12345",
+		DownloadPlaylist: false,
+	}
+	purePlaylistArgs := strings.Join(BuildDownloadArgs(purePlaylistOpts), " ")
+	if !strings.Contains(purePlaylistArgs, "--playlist-items 1") {
+		t.Errorf("expected --playlist-items 1 for pure playlist single item, got %s", purePlaylistArgs)
+	}
+	if strings.Contains(purePlaylistArgs, "--no-playlist") {
+		t.Errorf("did not expect --no-playlist for pure playlist single item, got %s", purePlaylistArgs)
+	}
+
 	// Test WAV preset: ensure no --embed-thumbnail
 	wavOpts := DownloadOptions{
 		Preset: PresetAudioWAV,

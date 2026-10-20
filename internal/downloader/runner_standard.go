@@ -37,6 +37,14 @@ func runStandardDownload(ctx context.Context, opts DownloadOptions) (*DownloadRe
 		}
 
 		if parser.hasCookieLock {
+			if snapArg, cleanup := util.CloneLockedGeckoProfile(tryOpts.CookiesBrowser); snapArg != tryOpts.CookiesBrowser {
+				defer cleanup()
+				snapOpts := tryOpts
+				snapOpts.CookiesBrowser = snapArg
+				if res, _, snapErr := executeStandardAttempt(ctx, snapOpts); snapErr == nil {
+					return res, nil
+				}
+			}
 			return nil, fmt.Errorf("Trình duyệt đang mở và khóa file cookies. Cậu chủ vui lòng đóng trình duyệt rồi thử lại.")
 		}
 
@@ -74,7 +82,18 @@ func runSingleStandardDownload(ctx context.Context, opts DownloadOptions) (*Down
 			return nil, ctx.Err()
 		}
 		if parser.hasCookieLock {
+			if snapArg, cleanup := util.CloneLockedGeckoProfile(opts.CookiesBrowser); snapArg != opts.CookiesBrowser {
+				defer cleanup()
+				snapOpts := opts
+				snapOpts.CookiesBrowser = snapArg
+				if res, _, snapErr := executeStandardAttempt(ctx, snapOpts); snapErr == nil {
+					return res, nil
+				}
+			}
 			return nil, fmt.Errorf("Trình duyệt đang mở và khóa file cookies. Cậu chủ vui lòng đóng trình duyệt rồi thử lại.")
+		}
+		if parser.hasAuthError {
+			return nil, fmt.Errorf("Nội dung này là riêng tư hoặc yêu cầu đăng nhập. Cậu chủ vui lòng nhấn Ctrl+B để bật Cookies trình duyệt (Zen/Chrome) rồi thử lại.")
 		}
 		if opts.DownloadPlaylist && len(parser.downloadedFiles) > 0 {
 			return parser.Result()

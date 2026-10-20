@@ -56,3 +56,34 @@ func TestGetCookieCascade(t *testing.T) {
 		t.Errorf("expected first candidate to be safari, got: %v", cascade)
 	}
 }
+
+func TestCloneLockedGeckoProfile(t *testing.T) {
+	tempDir := t.TempDir()
+	cookieFile := filepath.Join(tempDir, "cookies.sqlite")
+	_ = os.WriteFile(cookieFile, []byte("test-data"), 0600)
+	walFile := filepath.Join(tempDir, "cookies.sqlite-wal")
+	_ = os.WriteFile(walFile, []byte("wal-data"), 0600)
+
+	cookieArg := "firefox:" + tempDir
+	snapArg, cleanup := CloneLockedGeckoProfile(cookieArg)
+	defer cleanup()
+
+	if !strings.HasPrefix(snapArg, "firefox:") {
+		t.Errorf("expected snapArg to start with firefox:, got: %s", snapArg)
+	}
+	if snapArg == cookieArg {
+		t.Errorf("expected snapArg to be cloned into a different temp dir, got same: %s", snapArg)
+	}
+	snapDir := strings.TrimPrefix(snapArg, "firefox:")
+	if _, err := os.Stat(filepath.Join(snapDir, "cookies.sqlite")); err != nil {
+		t.Errorf("expected cloned cookies.sqlite to exist: %v", err)
+	}
+}
+
+func TestAllowedBrowsersExpansion(t *testing.T) {
+	for _, b := range []string{"arc", "opera-gx", "safari", "yandex", "cookies.txt", "/tmp/my_cookies.txt"} {
+		if !IsAllowedBrowser(b) {
+			t.Errorf("expected %s to be allowed, got false", b)
+		}
+	}
+}

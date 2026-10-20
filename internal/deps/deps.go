@@ -315,12 +315,18 @@ func downloadFile(url, destPath, itemName string, cb ProgressCallback) error {
 }
 
 func extractFFmpegFromZip(zipPath, targetDir string) error {
+	cleanTargetDir := filepath.Clean(targetDir)
+	if err := os.MkdirAll(cleanTargetDir, 0755); err != nil {
+		return err
+	}
+
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
 
+	found := false
 	for _, f := range r.File {
 		cleanName := filepath.Base(f.Name)
 		if strings.EqualFold(cleanName, "ffmpeg.exe") {
@@ -328,22 +334,31 @@ func extractFFmpegFromZip(zipPath, targetDir string) error {
 			if err != nil {
 				return err
 			}
+			defer rc.Close()
 
-			destFile := filepath.Join(targetDir, cleanName)
-			outFile, err := os.OpenFile(destFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-			if err != nil {
-				rc.Close()
-				return err
+			cleanDest := filepath.Clean(filepath.Join(targetDir, cleanName))
+			if !strings.HasPrefix(cleanDest, cleanTargetDir+string(filepath.Separator)) && cleanDest != cleanTargetDir {
+				return fmt.Errorf("đường dẫn không an toàn")
 			}
 
-			_, copyErr := io.Copy(outFile, rc)
-			rc.Close()
-			outFile.Close()
+			outFile, err := os.OpenFile(cleanDest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+			if err != nil {
+				return err
+			}
+			defer outFile.Close()
 
+			_, copyErr := io.Copy(outFile, rc)
 			if copyErr != nil {
 				return copyErr
 			}
+
+			found = true
 		}
 	}
+
+	if !found {
+		return fmt.Errorf("không tìm thấy tệp ffmpeg.exe trong file zip")
+	}
+
 	return nil
 }
