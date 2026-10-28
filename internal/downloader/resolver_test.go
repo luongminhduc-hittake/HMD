@@ -70,3 +70,33 @@ func TestResolveRedirect_YouTubeShort(t *testing.T) {
 		t.Errorf("expected youtube.com/watch URL with v=, got: %s", got)
 	}
 }
+
+func TestIsRedirectURLDoesNotMatchSubstrings(t *testing.T) {
+	falsePositives := []string{
+		"https://microsoft.com/download",
+		"https://videos.id/abc",
+		"https://reddit.com/r/pics",
+		"https://pin.it.example.com/x",
+		"https://spotify.link.evil.com/x",
+	}
+	for _, u := range falsePositives {
+		if IsRedirectURL(u) {
+			t.Errorf("IsRedirectURL(%q) = true, want false (substring false positive)", u)
+		}
+	}
+
+	truePositives := []string{
+		"https://t.co/abc123",
+		"https://bit.ly/abc123",
+		"https://pin.it/abc123",
+		"https://vt.tiktok.com/ZS1234/",
+		"https://fb.watch/abc123",
+		"https://s.id/abc123",
+		"https://b23.tv/abc123",
+	}
+	for _, u := range truePositives {
+		if !IsRedirectURL(u) {
+			t.Errorf("IsRedirectURL(%q) = false, want true", u)
+		}
+	}
+}

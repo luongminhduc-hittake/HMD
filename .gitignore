@@ -11,3 +11,6 @@ downloads/
 test_dl/
 dist/
 *.tmp
+
+# Windows resource objects (regenerate with rsrc/windres)
+*.syso

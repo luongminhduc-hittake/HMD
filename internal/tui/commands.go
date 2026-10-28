@@ -17,6 +17,10 @@ type msgDepsProgress struct {
 	percent    float64
 }
 
+type msgDepsStarted struct {
+	ch chan tea.Msg
+}
+
 type msgDepsReady struct {
 	paths deps.BinaryPaths
 	err   error
@@ -79,10 +83,10 @@ func checkUpdateCmd() tea.Cmd {
 	}
 }
 
-func startSelfUpdateCmd(assetURL string) (tea.Cmd, chan tea.Msg) {
+func startSelfUpdateCmd(assetURL, checksum string, size int64) (tea.Cmd, chan tea.Msg) {
 	ch := make(chan tea.Msg, 50)
 	go func() {
-		err := updater.ApplyUpdate(assetURL, func(dl, total int64, pct float64) {
+		err := updater.ApplyUpdate(assetURL, checksum, size, func(dl, total int64, pct float64) {
 			select {
 			case ch <- msgUpdateProgress{downloaded: dl, total: total, percent: pct}:
 			default:
@@ -115,16 +119,32 @@ func updateYtDlpCmd() (tea.Cmd, chan updateProgressMsg) {
 	return waitForChannel(ch), ch
 }
 
+// initDepsCmd checks for the required binaries and installs the missing ones,
+// streaming progress so the "checking system" screen is not frozen while a
+// 24 MB gallery-dl or 100 MB ffmpeg download runs.
 func initDepsCmd() tea.Cmd {
 	return func() tea.Msg {
-		paths, missing := deps.FindBinaries()
-		if len(missing) == 0 {
-			return msgDepsReady{paths: paths, err: nil}
-		}
+		ch := make(chan tea.Msg, 64)
+		go func() {
+			defer close(ch)
 
-		// Download missing dependencies
-		readyPaths, err := deps.EnsureDependencies(nil)
-		return msgDepsReady{paths: readyPaths, err: err}
+			paths, missing := deps.FindBinaries()
+			if len(missing) == 0 {
+				ch <- msgDepsReady{paths: paths}
+				return
+			}
+
+			ch <- msgDepsProgress{item: missing[0]}
+
+			readyPaths, err := deps.EnsureDependencies(func(name string, dl, total int64, pct float64) {
+				select {
+				case ch <- msgDepsProgress{item: name, downloaded: dl, total: total, percent: pct}:
+				default: // a dropped progress tick is fine; the next one follows immediately
+				}
+			})
+			ch <- msgDepsReady{paths: readyPaths, err: err}
+		}()
+		return msgDepsStarted{ch: ch}
 	}
 }
 
@@ -189,22 +209,16 @@ func startDownloadCmd(m *Model) (tea.Cmd, chan tea.Msg) {
 		},
 	}
 
-go func() {
-	res, err := downloader.ExecuteDownload(ctx, opts)
-	select {
-	case <-ctx.Done():
-	case ch <- msgDownloadCompleted{result: res, err: err}:
-	default:
+	go func() {
+		defer close(ch)
+		res, err := downloader.ExecuteDownload(ctx, opts)
+		// Progress callbacks drop messages when the buffer is full, so a non-blocking
+		// send could lose the only completion message. Block instead: the reader is
+		// always draining, and ctx.Done covers the case where the user quits first.
 		select {
-		case <-ch:
-		default:
-		}
-		select {
+		case <-ctx.Done():
 		case ch <- msgDownloadCompleted{result: res, err: err}:
-		default:
 		}
-	}
-	close(ch)
-}()
+	}()
 	return waitForChannel(ch), ch
 }

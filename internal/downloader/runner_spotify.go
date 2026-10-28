@@ -35,8 +35,14 @@ func runSpotifyDownload(ctx context.Context, opts DownloadOptions) (*DownloadRes
 			return nil, fmt.Errorf("không thể tìm hoặc tải bài hát %q: %w", track.Title, err)
 		}
 
-		// Inject metadata & cover
-		_ = InjectMetadata(ctx, opts.FFmpegPath, res.FilePath, track)
+		// Inject metadata & cover. A failure here is not fatal (the audio is already on
+		// disk and playable), but it must be surfaced instead of silently discarded.
+		if tagErr := InjectMetadata(ctx, opts.FFmpegPath, res.FilePath, track); tagErr != nil {
+			if opts.OnStatus != nil {
+				opts.OnStatus(fmt.Sprintf("Cảnh báo: không nhúng được bìa/thẻ cho %s - %s: %v", track.Artist, track.Title, tagErr))
+			}
+			res.FailedTracks = append(res.FailedTracks, fmt.Sprintf("%s - %s (không nhúng được bìa/thẻ thông tin)", track.Artist, track.Title))
+		}
 		if fi, err := os.Stat(res.FilePath); err == nil {
 			res.FileSize = fi.Size()
 			res.FormattedSize = util.FormatBytes(fi.Size())
@@ -134,7 +140,9 @@ func runSpotifyDownload(ctx context.Context, opts DownloadOptions) (*DownloadRes
 					failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (không tìm thấy trên YouTube)", track.Artist, track.Title))
 				} else {
 					downloadedCount++
-					_ = InjectMetadata(ctx, opts.FFmpegPath, singleRes.FilePath, track)
+					if tagErr := InjectMetadata(ctx, opts.FFmpegPath, singleRes.FilePath, track); tagErr != nil {
+						failedTracks = append(failedTracks, fmt.Sprintf("%s - %s (không nhúng được bìa/thẻ thông tin)", track.Artist, track.Title))
+					}
 				}
 				if opts.OnProgress != nil {
 					opts.OnProgress(ProgressUpdate{

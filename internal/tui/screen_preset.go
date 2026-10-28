@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"hmd/internal/util"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -97,7 +98,14 @@ func (m Model) updateInputTrim(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			m.TrimRange = strings.TrimSpace(m.TrimInput.Value())
+			val := strings.TrimSpace(m.TrimInput.Value())
+			if err := util.ValidateTrimRange(val); err != nil {
+				// Stay on this screen so the user can fix the input, and say why.
+				m.ErrorMessage = err.Error()
+				return m, nil
+			}
+			m.ErrorMessage = ""
+			m.TrimRange = val
 			m.State = StateSelectPreset
 			return m, nil
 		case "esc":
@@ -219,6 +227,9 @@ func (m Model) viewInputTrim() string {
 	s.WriteString(StyleBadgeInfo.Render("CẮT ĐOẠN") + " " + StyleHighlight.Render("Cắt đoạn thời gian Video / Audio") + "\n\n")
 	s.WriteString(StyleHelp.Render("Nhập khoảng thời gian cần cắt (VD: 01:20-03:45, 00:30-01:00 hoặc 0-60):\n(Để trống và nhấn Enter để hủy cắt đoạn, tải toàn bộ)\n\n"))
 	s.WriteString(m.TrimInput.View() + "\n\n")
+	if m.ErrorMessage != "" {
+		s.WriteString(StyleBadgeError.Render("✖ "+m.ErrorMessage) + "\n\n")
+	}
 	s.WriteString(StyleHelp.Render("Phím tắt: Enter (Lưu & Quay lại) • Esc (Hủy bỏ)"))
 
 	return StyleCard.Render(s.String())

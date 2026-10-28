@@ -37,6 +37,58 @@ var AllowedBrowsers = map[string]bool{
 	"yandex":    true,
 }
 
+// ytDlpCookieBrowsers lists the browser keys yt-dlp accepts for --cookies-from-browser.
+// Anything else is rejected with "unsupported browser specified for cookies".
+var ytDlpCookieBrowsers = map[string]bool{
+	"brave":    true,
+	"chrome":   true,
+	"chromium": true,
+	"edge":     true,
+	"firefox":  true,
+	"opera":    true,
+	"safari":   true,
+	"vivaldi":  true,
+	"whale":    true,
+}
+
+// cookieBrowserAliases maps browsers we can detect but yt-dlp cannot name onto the
+// cookie reader that actually understands their database.
+var cookieBrowserAliases = map[string]string{
+	"zen":       "firefox",
+	"floorp":    "firefox",
+	"librewolf": "firefox",
+	"waterfox":  "firefox",
+	"arc":       "chromium",
+	"yandex":    "chromium",
+	"coccoc":    "chromium",
+	"opera-gx":  "opera",
+}
+
+// NormalizeCookieArg converts an app-level browser ID into an argument yt-dlp and
+// gallery-dl accept. Explicit profiles ("firefox:/path", "chromium:/path") and cookie
+// files (path.txt) are passed through. Unknown names yield "" so we fall back to no
+// cookies instead of handing yt-dlp a value it will reject.
+func NormalizeCookieArg(arg string) string {
+	b := strings.TrimSpace(arg)
+	if b == "" {
+		return ""
+	}
+	if strings.Contains(b, ":") || strings.HasSuffix(strings.ToLower(b), ".txt") {
+		return b
+	}
+	lower := strings.ToLower(b)
+	if lower == "auto" {
+		return lower
+	}
+	if ytDlpCookieBrowsers[lower] {
+		return lower
+	}
+	if alias, ok := cookieBrowserAliases[lower]; ok {
+		return alias
+	}
+	return ""
+}
+
 // IsAllowedBrowser checks if the given browser name is in the security allowlist,
 // matches safe custom profile syntax like "firefox:/path", or is a direct cookie file (.txt).
 func IsAllowedBrowser(browser string) bool {

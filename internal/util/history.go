@@ -93,11 +93,6 @@ func FindHistoryInEntries(entries []HistoryEntry, rawURL string) *HistoryEntry {
 	return nil
 }
 
-// FindHistoryByURL checks if a URL was previously downloaded.
-func FindHistoryByURL(rawURL string) *HistoryEntry {
-	return FindHistoryInEntries(LoadHistory(), rawURL)
-}
-
 // DeleteHistoryEntry removes an entry at the given index.
 func DeleteHistoryEntry(index int) error {
 	entries := LoadHistory()

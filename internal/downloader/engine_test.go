@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -151,6 +153,12 @@ func TestHelperProcess(t *testing.T) {
 	case "thumbnail":
 		fmt.Println("[info] Writing video thumbnail 1 to: /tmp/test_download/cover.jpg")
 		os.Exit(0)
+	case "fake_file":
+		dir := os.Getenv("FAKE_FILE_DIR")
+		p := filepath.Join(dir, "Artist - Track.mp3")
+		_ = os.WriteFile(p, []byte("not real audio"), 0644)
+		fmt.Println("FINAL_PATH:" + p)
+		os.Exit(0)
 	case "hang":
 		time.Sleep(10 * time.Second)
 		os.Exit(0)
@@ -264,5 +272,80 @@ func TestResolveCookieArg(t *testing.T) {
 	// Chrome should resolve to something valid (either detected or "chrome")
 	if got := resolveCookieArg("chrome"); got == "" {
 		t.Errorf("expected non-empty resolved chrome cookie arg")
+	}
+}
+
+func TestBuildDownloadArgsPlaylistFlagsAreValid(t *testing.T) {
+	opts := DownloadOptions{
+		URL:              "https://www.youtube.com/playlist?list=PL12345",
+		OutputDir:        "/tmp/test_download",
+		DownloadPlaylist: true,
+	}
+
+	args := BuildDownloadArgs(opts)
+
+	for i := 0; i < len(args); i++ {
+		if args[i] != "--skip-playlist-after-errors" {
+			continue
+		}
+		if i+1 >= len(args) {
+			t.Fatalf("--skip-playlist-after-errors has no value")
+		}
+		if _, err := strconv.Atoi(args[i+1]); err != nil {
+			t.Errorf("--skip-playlist-after-errors value %q is not an integer; yt-dlp rejects it", args[i+1])
+		}
+	}
+}
+
+func TestBuildDownloadArgsPlaylistAcceptedByYtDlp(t *testing.T) {
+	ytdlp, err := exec.LookPath("yt-dlp")
+	if err != nil {
+		t.Skip("yt-dlp not installed")
+	}
+
+	args := BuildDownloadArgs(DownloadOptions{
+		URL:              "https://www.youtube.com/playlist?list=PL12345",
+		OutputDir:        t.TempDir(),
+		DownloadPlaylist: true,
+	})
+	// Argument parsing happens before any network work, so a rejected flag shows up as
+	// "option ... invalid" / "no such option" even when the download itself fails.
+	runArgs := append([]string{"--simulate"}, args...)
+	cmd := exec.Command(ytdlp, runArgs...)
+	out, _ := cmd.CombinedOutput()
+
+	for _, marker := range []string{"no such option", "invalid integer value", "invalid choice", "option --"} {
+		if strings.Contains(string(out), marker) {
+			t.Fatalf("yt-dlp rejected generated playlist args (%s):\n%s", marker, out)
+		}
+	}
+}
+
+func TestResolveCookieArgNeverReturnsUnsupportedBrowser(t *testing.T) {
+	supported := map[string]bool{
+		"brave": true, "chrome": true, "chromium": true, "edge": true,
+		"firefox": true, "opera": true, "safari": true, "vivaldi": true, "whale": true,
+	}
+
+	for _, pref := range []string{"arc", "yandex", "coccoc", "opera-gx", "zen", "floorp", "brave"} {
+		arg := resolveCookieArg(pref)
+		if arg == "" {
+			continue
+		}
+		if strings.Contains(arg, ":") {
+			if !strings.HasPrefix(arg, "firefox:") && !strings.HasPrefix(arg, "chromium:") {
+				t.Errorf("resolveCookieArg(%q) = %q, unsupported profile syntax", pref, arg)
+			}
+			continue
+		}
+		if !supported[strings.ToLower(arg)] {
+			t.Errorf("resolveCookieArg(%q) = %q, which yt-dlp rejects", pref, arg)
+		}
+	}
+}
+
+func TestResolveCookieArgOperaGXResolvesToOpera(t *testing.T) {
+	if got := resolveCookieArg("opera-gx"); got != "opera" {
+		t.Errorf("expected opera-gx to resolve to \"opera\", got %q", got)
 	}
 }

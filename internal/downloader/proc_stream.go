@@ -44,9 +44,9 @@ func streamCommand(ctx context.Context, binPath string, args []string, onLine fu
 		}
 	}
 
-waitErr := cmd.Wait()
-if ctx.Err() != nil {
-	return ctx.Err()
-}
-return waitErr
+	waitErr := cmd.Wait()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return waitErr
 }

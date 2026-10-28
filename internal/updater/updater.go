@@ -1,6 +1,8 @@
 package updater
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +18,7 @@ import (
 )
 
 const (
-	CurrentVersion = "3.1.0"
+	CurrentVersion = "3.2.0"
 	GitHubRepo     = "luongminhduc-hittake/HMD"
 )
 
@@ -28,6 +30,7 @@ type gitHubRelease struct {
 		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
 		Size               int64  `json:"size"`
+		Digest             string `json:"digest"`
 	} `json:"assets"`
 }
 
@@ -37,6 +40,9 @@ type ReleaseInfo struct {
 	DownloadURL string
 	AssetSize   int64
 	FileName    string
+	// Checksum is the GitHub-published asset digest, e.g. "sha256:abc...". Empty when
+	// the release predates asset digests, in which case installing is refused.
+	Checksum string
 }
 
 // CheckForUpdate queries GitHub Releases for a newer version.
@@ -80,6 +86,7 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 	var targetAssetURL string
 	var targetSize int64
 	var targetName string
+	var targetDigest string
 
 	isWin := runtime.GOOS == "windows"
 	for _, asset := range rel.Assets {
@@ -89,6 +96,7 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 				targetAssetURL = asset.BrowserDownloadURL
 				targetSize = asset.Size
 				targetName = asset.Name
+				targetDigest = asset.Digest
 				break
 			}
 		} else {
@@ -96,6 +104,7 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 				targetAssetURL = asset.BrowserDownloadURL
 				targetSize = asset.Size
 				targetName = asset.Name
+				targetDigest = asset.Digest
 				break
 			}
 		}
@@ -110,6 +119,7 @@ func CheckForUpdate() (*ReleaseInfo, error) {
 		DownloadURL: targetAssetURL,
 		AssetSize:   targetSize,
 		FileName:    targetName,
+		Checksum:    targetDigest,
 	}, nil
 }
 
@@ -141,8 +151,12 @@ func isNewerVersion(remote, current string) bool {
 	return r3 > c3
 }
 
-// ApplyUpdate downloads the new binary and atomically replaces the currently running executable.
-func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float64)) error {
+// ApplyUpdate downloads the new binary, verifies it against the checksum published
+// with the release, and only then atomically replaces the running executable.
+func ApplyUpdate(downloadURL, expectedChecksum string, expectedSize int64, onProgress func(dl, total int64, pct float64)) error {
+	if strings.TrimSpace(expectedChecksum) == "" {
+		return fmt.Errorf("không có checksum cho bản cập nhật, từ chối cài đặt để bảo đảm toàn vẹn")
+	}
 	execPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("không thể xác định vị trí file chạy: %w", err)
@@ -206,6 +220,24 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 	}
 	out.Close()
 
+	// Never install bytes we cannot vouch for: check the published digest and size
+	// before touching the running executable.
+	sum, hashErr := fileSHA256(tmpPath)
+	if hashErr != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("không thể kiểm tra toàn vẹn bản cập nhật: %w", hashErr)
+	}
+	if want := normalizeDigest(expectedChecksum); want != "" && !strings.EqualFold(sum, want) {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("checksum bản cập nhật không khớp: mong đợi %s, nhận %s", want, sum)
+	}
+	if expectedSize > 0 {
+		if info, statErr := os.Stat(tmpPath); statErr == nil && info.Size() != expectedSize {
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("kích thước bản cập nhật không khớp: mong đợi %d byte, nhận %d byte", expectedSize, info.Size())
+		}
+	}
+
 	// Safe replacement
 	if runtime.GOOS == "windows" {
 		oldPath := execPath + ".old"
@@ -231,4 +263,39 @@ func ApplyUpdate(downloadURL string, onProgress func(dl, total int64, pct float6
 	}
 
 	return nil
+}
+
+// fileSHA256 returns the lowercase hex sha256 digest of path.
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// normalizeDigest accepts "sha256:<hex>" or bare "<hex>" and returns the hex part.
+func normalizeDigest(d string) string {
+	d = strings.TrimSpace(d)
+	if i := strings.Index(d, ":"); i >= 0 {
+		d = d[i+1:]
+	}
+	return strings.ToLower(strings.TrimSpace(d))
+}
+
+// parseChecksum returns the hex digest listed for assetName in a "hash  name" manifest.
+func parseChecksum(manifest, assetName string) string {
+	for _, line := range strings.Split(manifest, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[1] == assetName {
+			return strings.ToLower(fields[0])
+		}
+	}
+	return ""
 }

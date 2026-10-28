@@ -1,6 +1,8 @@
 package downloader
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -119,5 +121,94 @@ func TestGalleryParser(t *testing.T) {
 	}
 	if lastProg.Percent != 100 {
 		t.Errorf("expected percent 100, got %f", lastProg.Percent)
+	}
+}
+
+func TestGalleryParserSkipsAlreadyDownloadedPrefix(t *testing.T) {
+	var statuses []string
+	opts := DownloadOptions{
+		Title:     "Photo Album",
+		OutputDir: "/downloads",
+		OnStatus:  func(s string) { statuses = append(statuses, s) },
+	}
+	parser := NewGalleryParser(opts)
+
+	// gallery-dl prints "# <path>" when the file already exists on disk.
+	parser.FeedLine("# /downloads/127.0.0.1__pic.jpg")
+
+	if parser.finalFilePath != "/downloads/127.0.0.1__pic.jpg" {
+		t.Errorf("expected final path from '#' line, got %q", parser.finalFilePath)
+	}
+
+	res, err := parser.Result()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.DownloadedCount != 1 {
+		t.Errorf("expected downloaded count 1, got %d", res.DownloadedCount)
+	}
+}
+
+func TestGalleryParserEmptyResultIsError(t *testing.T) {
+	parser := NewGalleryParser(DownloadOptions{Title: "Empty Album", OutputDir: "/downloads"})
+
+	res, err := parser.Result()
+	if err == nil {
+		t.Fatalf("expected error when gallery-dl reported no files, got result %+v", res)
+	}
+}
+
+func TestYtDlpParserDownloadedCountCountsItemsNotStreams(t *testing.T) {
+	parser := NewYtDlpParser(DownloadOptions{DownloadPlaylist: true})
+
+	// Two playlist items, each with a video + audio stream that gets merged.
+	lines := []string{
+		"[download] Downloading item 1 of 2",
+		"[download] Destination: /dl/Video One.f137.mp4",
+		"[download] Destination: /dl/Video One.f251.webm",
+		"[Merger] Merging formats into \"/dl/Video One.mp4\"",
+		"FINAL_PATH:/dl/Video One.mp4",
+		"[download] Downloading item 2 of 2",
+		"[download] Destination: /dl/Video Two.f137.mp4",
+		"[download] Destination: /dl/Video Two.f251.webm",
+		"[Merger] Merging formats into \"/dl/Video Two.mp4\"",
+		"FINAL_PATH:/dl/Video Two.mp4",
+	}
+	for _, l := range lines {
+		parser.FeedLine(l)
+	}
+
+	res, err := parser.Result()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.DownloadedCount != 2 {
+		t.Errorf("expected 2 downloaded items for a 2-item playlist, got %d", res.DownloadedCount)
+	}
+}
+
+func TestYtDlpParserThumbnailUsesConvertedJPGExtension(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "cover.webp")
+	jpg := filepath.Join(dir, "cover.jpg")
+	if err := os.WriteFile(jpg, []byte("jpeg-bytes"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	parser := NewYtDlpParser(DownloadOptions{Preset: PresetThumbnail, OutputDir: dir})
+	// Real yt-dlp sequence: writes .webp, converts to .jpg, deletes the .webp.
+	parser.FeedLine("[info] Writing video thumbnail 41 to: " + src)
+	parser.FeedLine("[ThumbnailsConvertor] Converting thumbnail \"" + src + "\" to jpg")
+	parser.FeedLine("Deleting original file " + src + " (pass -k to keep)")
+
+	res, err := parser.Result()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.FilePath != jpg {
+		t.Errorf("expected converted thumbnail path %q, got %q", jpg, res.FilePath)
+	}
+	if res.FileSize != int64(len("jpeg-bytes")) {
+		t.Errorf("expected file size of the .jpg, got %d", res.FileSize)
 	}
 }

@@ -40,19 +40,17 @@ func (p *YtDlpParser) FeedLine(line string) {
 		return
 	}
 
-	// Output paths
+	// Output paths. Only files that survive on disk are recorded: the per-stream
+	// "[download] Destination:" paths are temp artifacts that get merged away, so
+	// counting them would report 3 "items" for a single merged video.
 	if strings.HasPrefix(line, "FINAL_PATH:") {
-		path := strings.TrimPrefix(line, "FINAL_PATH:")
+		path := strings.TrimSpace(strings.TrimPrefix(line, "FINAL_PATH:"))
 		p.finalFilePath = path
 		p.downloadedFiles[path] = true
 		return
 	}
 
-	if strings.HasPrefix(line, "[download] Destination: ") {
-		path := strings.TrimSpace(strings.TrimPrefix(line, "[download] Destination: "))
-		p.finalFilePath = path
-		p.downloadedFiles[path] = true
-	} else if strings.Contains(line, " has already been downloaded") && strings.HasPrefix(line, "[download] ") {
+	if strings.Contains(line, " has already been downloaded") && strings.HasPrefix(line, "[download] ") {
 		f := strings.TrimPrefix(line, "[download] ")
 		f = strings.TrimSuffix(f, " has already been downloaded")
 		p.finalFilePath = strings.TrimSpace(f)
@@ -68,11 +66,18 @@ func (p *YtDlpParser) FeedLine(line string) {
 			p.finalFilePath = strings.TrimSpace(parts[1])
 			p.downloadedFiles[p.finalFilePath] = true
 		}
-	} else if strings.Contains(line, "Converting thumbnail") && strings.Contains(line, " to: ") {
-		parts := strings.Split(line, " to: ")
-		if len(parts) == 2 {
-			p.finalFilePath = strings.Trim(strings.TrimSpace(parts[1]), "\"")
-			p.downloadedFiles[p.finalFilePath] = true
+	} else if strings.Contains(line, "Converting thumbnail") {
+		p.trackThumbnailConversion(line)
+	} else if strings.HasPrefix(line, "Deleting original file ") {
+		// yt-dlp removes the pre-conversion thumbnail; stop reporting a path that no longer exists.
+		f := strings.TrimPrefix(line, "Deleting original file ")
+		if idx := strings.Index(f, " (pass"); idx >= 0 {
+			f = f[:idx]
+		}
+		f = strings.TrimSpace(f)
+		delete(p.downloadedFiles, f)
+		if p.finalFilePath == f {
+			p.finalFilePath = ""
 		}
 	}
 
@@ -114,6 +119,40 @@ func (p *YtDlpParser) FeedLine(line string) {
 
 	// Post-processing stages
 	p.checkPostprocessing(line)
+}
+
+// trackThumbnailConversion records the post-conversion thumbnail path. yt-dlp writes
+// "<name>.webp" first, converts it to "<name>.jpg", then deletes the .webp — so the
+// path the user should get is the converted one.
+func (p *YtDlpParser) trackThumbnailConversion(line string) {
+	const marker = ` to `
+	idx := strings.LastIndex(line, marker)
+	if idx < 0 {
+		return
+	}
+	target := strings.Trim(strings.TrimSpace(line[idx+len(marker):]), "\"")
+	if target == "" || strings.ContainsAny(target, " \t") {
+		return
+	}
+
+	// Line form: [ThumbnailsConvertor] Converting thumbnail "<src>" to jpg
+	// The target is only a bare extension, so build the path from the quoted source.
+	if start := strings.Index(line, "\""); start >= 0 {
+		if end := strings.Index(line[start+1:], "\""); end >= 0 {
+			src := line[start+1 : start+1+end]
+			ext := filepath.Ext(src)
+			p.finalFilePath = strings.TrimSuffix(src, ext) + "." + target
+			delete(p.downloadedFiles, src)
+			p.downloadedFiles[p.finalFilePath] = true
+			return
+		}
+	}
+
+	if target == "" {
+		return
+	}
+	p.finalFilePath = target
+	p.downloadedFiles[target] = true
 }
 
 func (p *YtDlpParser) parseProgress(raw string) {

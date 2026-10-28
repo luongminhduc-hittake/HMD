@@ -34,14 +34,11 @@ const (
 
 // Model represents the overall TUI application state.
 type Model struct {
-	State        SessionState
-	Paths        deps.BinaryPaths
-	OutputDir    string
-	TerminalWidth int
-	TerminalHeight int
+	State     SessionState
+	Paths     deps.BinaryPaths
+	OutputDir string
 
-	// Dependency check
-	DepsMissing  []string
+	// Dependency check progress
 	DepsItemName string
 	DepsPercent  float64
 
@@ -56,7 +53,7 @@ type Model struct {
 	MediaInfo *downloader.MediaInfo
 
 	// Playlist choice
-	PlaylistIndex   int
+	PlaylistIndex    int
 	DownloadPlaylist bool
 
 	// Preset choice
@@ -64,8 +61,8 @@ type Model struct {
 	AvailablePresets []downloader.PresetOption
 
 	// Download state
-	ProgressModel progress.Model
-	ProgressData  downloader.ProgressUpdate
+	ProgressModel  progress.Model
+	ProgressData   downloader.ProgressUpdate
 	DownloadCancel context.CancelFunc
 	ProgressChan   chan tea.Msg
 

@@ -117,7 +117,7 @@ func BuildDownloadArgs(opts DownloadOptions) []string {
 			"--yes-playlist",
 			"--ignore-errors",
 			"--no-abort-on-error",
-			"--skip-playlist-after-errors", "infinite",
+			"--skip-playlist-after-errors", "10",
 		)
 	} else {
 		if isPurePlaylistURL(opts.URL) {
@@ -203,7 +203,9 @@ func ExecuteDownload(ctx context.Context, opts DownloadOptions) (*DownloadResult
 
 // resolveCookieArg converts user-specified browser options (like "auto", "zen", "chrome")
 // into concrete command-line arguments recognized by yt-dlp/gallery-dl.
-// If "auto" produces no candidate, returns empty string.
+// Browsers yt-dlp cannot name (arc, yandex, coccoc) are mapped to the cookie reader
+// that understands their database; unknown values yield "" so we send no cookies at all
+// instead of an argument yt-dlp rejects.
 func resolveCookieArg(pref string) string {
 	pref = strings.TrimSpace(pref)
 	if pref == "" {
@@ -215,13 +217,16 @@ func resolveCookieArg(pref string) string {
 	if strings.EqualFold(pref, "auto") {
 		cands := util.GetCookieCascade("auto")
 		if len(cands) > 0 {
-			return cands[0].CookieArg
+			return util.NormalizeCookieArg(cands[0].CookieArg)
 		}
 		return ""
 	}
 	cands := util.GetCookieCascade(pref)
 	if len(cands) > 0 {
-		return cands[0].CookieArg
+		return util.NormalizeCookieArg(cands[0].CookieArg)
+	}
+	if normalized := util.NormalizeCookieArg(pref); normalized != "" {
+		return normalized
 	}
 	return pref
 }

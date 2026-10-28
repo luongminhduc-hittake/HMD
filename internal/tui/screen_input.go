@@ -31,7 +31,7 @@ func (m Model) updateInputURL(msg tea.Msg) (Model, tea.Cmd) {
 				m.UpdateError = nil
 				m.UpdateSuccess = false
 				var upCmd tea.Cmd
-				upCmd, m.ProgressChan = startSelfUpdateCmd(m.AvailableUpdate.DownloadURL)
+				upCmd, m.ProgressChan = startSelfUpdateCmd(m.AvailableUpdate.DownloadURL, m.AvailableUpdate.Checksum, m.AvailableUpdate.AssetSize)
 				return m, upCmd
 			}
 		case "ctrl+b":
@@ -100,10 +100,16 @@ func (m Model) updateChangeDir(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			val := strings.TrimSpace(m.DirInput.Value())
+			val := util.ExpandHome(strings.TrimSpace(m.DirInput.Value()))
 			if val != "" {
-				_ = os.MkdirAll(val, 0755)
+				if err := os.MkdirAll(val, 0755); err != nil {
+					m.State = StateError
+					m.ErrorMessage = fmt.Sprintf("không thể tạo thư mục lưu %q: %v", val, err)
+					m.ActionIndex = 0
+					return m, nil
+				}
 				m.OutputDir = val
+				m.DirInput.SetValue(val)
 				_ = util.SaveConfig(util.Config{
 					DownloadDir:         val,
 					CookiesBrowser:      m.CookiesBrowser,

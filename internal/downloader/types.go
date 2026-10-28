@@ -6,14 +6,14 @@ import "hmd/internal/spotify"
 type FormatPreset string
 
 const (
-	PresetBestVideo FormatPreset = "best"
-	Preset1080p     FormatPreset = "1080p"
-	Preset720p      FormatPreset = "720p"
-	PresetAudioMP3  FormatPreset = "mp3"
-	PresetAudioM4A  FormatPreset = "m4a"
-	PresetAudioWAV  FormatPreset = "wav"
-	PresetAudioFLAC FormatPreset = "flac"
-	PresetAudioOPUS FormatPreset = "opus"
+	PresetBestVideo     FormatPreset = "best"
+	Preset1080p         FormatPreset = "1080p"
+	Preset720p          FormatPreset = "720p"
+	PresetAudioMP3      FormatPreset = "mp3"
+	PresetAudioM4A      FormatPreset = "m4a"
+	PresetAudioWAV      FormatPreset = "wav"
+	PresetAudioFLAC     FormatPreset = "flac"
+	PresetAudioOPUS     FormatPreset = "opus"
 	PresetThumbnail     FormatPreset = "thumb"
 	PresetImageOriginal FormatPreset = "image"
 )

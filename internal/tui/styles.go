@@ -57,10 +57,10 @@ var (
 			Padding(0, 1)
 
 	StyleBadgeWarning = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(ColorNordPolarDark).
-			Background(ColorNordAuroraGold).
-			Padding(0, 1)
+				Bold(true).
+				Foreground(ColorNordPolarDark).
+				Background(ColorNordAuroraGold).
+				Padding(0, 1)
 
 	StyleSelected = lipgloss.NewStyle().
 			Bold(true).

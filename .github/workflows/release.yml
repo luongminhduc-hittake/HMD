@@ -20,11 +20,17 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          # Keep CI on the exact toolchain recorded in go.mod.
+          go-version-file: go.mod
 
       - name: Build Linux Binary
         run: |
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o hmd-linux-amd64 .
+
+      - name: Build Windows Resource Object
+        run: |
+          # rsrc_windows_amd64.syso is generated, not committed: embed the icon at build time.
+          go run github.com/akavel/rsrc@v0.10.2 -arch amd64 -ico assets/icon.ico -o rsrc_windows_amd64.syso
 
       - name: Build Windows Binary
         run: |

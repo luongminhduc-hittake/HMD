@@ -32,14 +32,14 @@ func TestHistoryOperations(t *testing.T) {
 		t.Fatalf("failed to add entry: %v", err)
 	}
 
-	// Verify FindHistoryByURL
-	found := FindHistoryByURL("https://youtube.com/watch?v=abc12345")
+	// Verify FindHistoryInEntries
+	found := FindHistoryInEntries(LoadHistory(), "https://youtube.com/watch?v=abc12345")
 	if found == nil || found.Title != "Test Video 1" {
 		t.Fatalf("expected to find entry 1, got %+v", found)
 	}
 
 	// Not found
-	if notFound := FindHistoryByURL("https://youtube.com/watch?v=notexist"); notFound != nil {
+	if notFound := FindHistoryInEntries(LoadHistory(), "https://youtube.com/watch?v=notexist"); notFound != nil {
 		t.Fatalf("expected nil for non-existent url, got %+v", notFound)
 	}
 

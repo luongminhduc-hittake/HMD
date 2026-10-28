@@ -3,6 +3,7 @@ package util
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -101,3 +102,27 @@ func TestHMDConfigDirEnv(t *testing.T) {
 	}
 }
 
+func TestDetectedBrowserCookieArgsAreSupportedByYtDlp(t *testing.T) {
+	// yt-dlp --cookies-from-browser only accepts these names.
+	supported := map[string]bool{
+		"brave": true, "chrome": true, "chromium": true, "edge": true,
+		"firefox": true, "opera": true, "safari": true, "vivaldi": true, "whale": true,
+	}
+
+	cases := []DetectedBrowser{
+		{ID: "arc", CookieArg: "arc"},
+		{ID: "yandex", CookieArg: "yandex"},
+		{ID: "coccoc", CookieArg: "coccoc"},
+		{ID: "opera-gx", CookieArg: "opera-gx"},
+	}
+
+	for _, c := range cases {
+		arg := NormalizeCookieArg(c.CookieArg)
+		if strings.Contains(arg, ":") {
+			continue // explicit profile path, e.g. chromium:/path
+		}
+		if !supported[strings.ToLower(arg)] {
+			t.Errorf("%s resolved to cookies arg %q, which yt-dlp rejects (supported: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale)", c.ID, arg)
+		}
+	}
+}

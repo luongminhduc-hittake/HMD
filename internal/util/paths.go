@@ -96,6 +96,35 @@ func OpenFolder(targetPath string) error {
 	return nil
 }
 
+// ExpandHome expands a leading "~" or "~/" to the current user's home directory.
+// Other forms such as "~otheruser" are left untouched.
+func ExpandHome(p string) string {
+	if p != "~" && !strings.HasPrefix(p, "~/") {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
+	}
+	if p == "~" {
+		return home
+	}
+	return filepath.Join(home, p[2:])
+}
+
+// TruncateTitle shortens a display title to at most max runes, appending "...".
+// It never splits a multi-byte character, so Vietnamese diacritics stay intact.
+func TruncateTitle(title string, max int) string {
+	if max <= 3 {
+		return title
+	}
+	r := []rune(title)
+	if len(r) <= max {
+		return title
+	}
+	return string(r[:max-3]) + "..."
+}
+
 // FormatBytes formats byte counts into human readable strings (KiB, MiB, GiB).
 func FormatBytes(b int64) string {
 	const unit = 1024

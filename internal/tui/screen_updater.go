@@ -35,7 +35,7 @@ func (m Model) viewCheckDeps() string {
 	s.WriteString(StyleBadgeInfo.Render("KHỞI TẠO"))
 	s.WriteString(" Đang kiểm tra công cụ cần thiết (yt-dlp, ffmpeg)...\n\n")
 
-	if len(m.DepsMissing) > 0 {
+	if m.DepsItemName != "" {
 		s.WriteString(fmt.Sprintf("Đang tải %s tự động (chỉ tải 1 lần duy nhất)...\n\n", StyleHighlight.Render(m.DepsItemName)))
 		s.WriteString(m.ProgressModel.ViewAs(m.DepsPercent / 100.0))
 		s.WriteString(fmt.Sprintf("  %.1f%%\n\n", m.DepsPercent))
@@ -74,7 +74,7 @@ func (m Model) viewUpdating() string {
 
 	s.WriteString(m.Spinner.View() + " " + m.UpdateStatus + "\n\n")
 	if m.UpdateProgress > 0 {
-		s.WriteString(m.ProgressModel.ViewAs(m.UpdateProgress / 100.0) + "\n\n")
+		s.WriteString(m.ProgressModel.ViewAs(m.UpdateProgress/100.0) + "\n\n")
 	}
 	s.WriteString(StyleHelp.Render("Đang cài đặt trực tiếp vào hệ thống... Vui lòng chờ."))
 

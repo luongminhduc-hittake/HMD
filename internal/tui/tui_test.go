@@ -424,7 +424,87 @@ func TestModelAvailablePresetsNavigation(t *testing.T) {
 	}
 }
 
+func TestViewCheckDepsShowsDownloadProgress(t *testing.T) {
+	m := InitialModel("", "", "")
+	m.State = StateCheckDeps
+	m.DepsItemName = "gallery-dl"
+	m.DepsPercent = 42.5
 
+	out := m.View()
+	if !strings.Contains(out, "gallery-dl") {
+		t.Errorf("deps screen must name the item being downloaded, got:\n%s", out)
+	}
+	if !strings.Contains(out, "42.5") {
+		t.Errorf("deps screen must show the download percentage, got:\n%s", out)
+	}
+}
 
+func TestUpdateInputTrimRejectsInvalidRange(t *testing.T) {
+	m := InitialModel("", "", "")
+	m.State = StateInputTrim
+	m.TrimRange = "01:00-02:00"
 
+	m.TrimInput.SetValue("abc")
+	m.TrimInput.Focus()
 
+	got, cmd := m.updateInputTrim(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		_ = cmd
+	}
+	if got.State != StateInputTrim {
+		t.Errorf("invalid range must keep the user on the trim screen, got state %v", got.State)
+	}
+	if got.ErrorMessage == "" {
+		t.Errorf("invalid range must show an error message")
+	}
+	if got.TrimRange != "01:00-02:00" {
+		t.Errorf("invalid input must not overwrite the stored range, got %q", got.TrimRange)
+	}
+}
+
+func TestUpdateInputTrimAcceptsValidRange(t *testing.T) {
+	m := InitialModel("", "", "")
+	m.State = StateInputTrim
+
+	m.TrimInput.SetValue("00:10-00:40")
+	m.TrimInput.Focus()
+
+	got, _ := m.updateInputTrim(tea.KeyMsg{Type: tea.KeyEnter})
+	if got.State != StateSelectPreset {
+		t.Errorf("valid range must advance to preset selection, got state %v", got.State)
+	}
+	if got.TrimRange != "00:10-00:40" {
+		t.Errorf("TrimRange = %q, want %q", got.TrimRange, "00:10-00:40")
+	}
+}
+
+func TestUpdateInputTrimAllowsClearing(t *testing.T) {
+	m := InitialModel("", "", "")
+	m.State = StateInputTrim
+	m.TrimRange = "00:10-00:40"
+
+	m.TrimInput.SetValue("")
+	m.TrimInput.Focus()
+
+	got, _ := m.updateInputTrim(tea.KeyMsg{Type: tea.KeyEnter})
+	if got.State != StateSelectPreset {
+		t.Errorf("clearing the range must be allowed, got state %v", got.State)
+	}
+	if got.TrimRange != "" {
+		t.Errorf("TrimRange = %q, want empty", got.TrimRange)
+	}
+}
+
+func TestViewInputTrimShowsErrorMessage(t *testing.T) {
+	m := InitialModel("", "", "")
+	m.State = StateInputTrim
+	m.TrimInput.SetValue("abc")
+	m.TrimInput.Focus()
+
+	m, _ = m.updateInputTrim(tea.KeyMsg{Type: tea.KeyEnter})
+
+	out := m.View()
+	if !strings.Contains(out, "không hợp lệ") {
+		t.Errorf("trim screen must render the validation error, got:\n%s", out)
+	}
+}

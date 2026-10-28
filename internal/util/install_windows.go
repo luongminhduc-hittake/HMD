@@ -23,22 +23,6 @@ func GetWindowsInstallDir() string {
 	return filepath.Join(localAppData, "Programs", "hittakeMD")
 }
 
-// IsInstalledOnWindows checks if the currently running executable is already in the install dir.
-func IsInstalledOnWindows() bool {
-	if runtime.GOOS != "windows" {
-		return true
-	}
-	execPath, err := os.Executable()
-	if err != nil {
-		return true
-	}
-	installDir := GetWindowsInstallDir()
-	if installDir == "" {
-		return true
-	}
-	return strings.HasPrefix(strings.ToLower(execPath), strings.ToLower(installDir))
-}
-
 // InstallOnWindows copies the running executable to %LOCALAPPDATA%\Programs\hittakeMD\hmd.exe
 // and creates Desktop & Start Menu shortcuts with the embedded icon.
 func InstallOnWindows() (string, error) {

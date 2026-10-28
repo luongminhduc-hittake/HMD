@@ -21,12 +21,6 @@ var SharedTransport = func() *http.Transport {
 	return tr
 }()
 
-// SharedClient is a reusable HTTP client with connection pooling and standard timeout.
-var SharedClient = &http.Client{
-	Transport: SharedTransport,
-	Timeout:   45 * time.Second,
-}
-
 // SharedNoRedirectClient is a reusable HTTP client that halts on the first redirect.
 var SharedNoRedirectClient = &http.Client{
 	Transport: SharedTransport,

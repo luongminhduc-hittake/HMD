@@ -26,32 +26,54 @@ var defaultResolverClient = &http.Client{
 
 var pinIDRegex = regexp.MustCompile(`/pin/(?:[\w-]+--)?(\d+)`)
 
+// redirectHosts lists domains whose links are shorteners or share wrappers.
+// Matching is by full label ("t.co" or "*.t.co"), never a substring: "microsoft.com"
+// contains "t.co" and would otherwise be fetched as if it were a shortener.
+var redirectHosts = []string{
+	"pin.it",
+	"vt.tiktok.com",
+	"vm.tiktok.com",
+	"v.douyin.com",
+	"fb.watch",
+	"fb.me",
+	"threads.net",
+	"b23.tv",
+	"t.co",
+	"redd.it",
+	"spotify.link",
+	"bit.ly",
+	"tinyurl.com",
+	"cutt.ly",
+	"s.id",
+}
+
+// hostMatches reports whether host is exactly domain or a subdomain of it.
+func hostMatches(host, domain string) bool {
+	return host == domain || strings.HasSuffix(host, "."+domain)
+}
+
 // IsRedirectURL checks if a URL belongs to known shortener or redirect domains.
 func IsRedirectURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Host == "" {
 		return false
 	}
-	host := strings.ToLower(u.Host)
+	host := strings.ToLower(u.Hostname())
 	path := strings.ToLower(u.Path)
-	return strings.Contains(host, "pin.it") ||
-		strings.Contains(host, "vt.tiktok.com") ||
-		strings.Contains(host, "vm.tiktok.com") ||
-		strings.Contains(host, "v.douyin.com") ||
-		(strings.Contains(host, "tiktok.com") && strings.HasPrefix(path, "/t/")) ||
-		strings.Contains(host, "fb.watch") ||
-		strings.Contains(host, "fb.me") ||
-		(strings.Contains(host, "facebook.com") && strings.HasPrefix(path, "/share")) ||
-		(strings.Contains(host, "instagram.com") && strings.HasPrefix(path, "/share")) ||
-		strings.Contains(host, "threads.net") ||
-		strings.Contains(host, "b23.tv") ||
-		strings.Contains(host, "t.co") ||
-		strings.Contains(host, "redd.it") ||
-		strings.Contains(host, "spotify.link") ||
-		strings.Contains(host, "bit.ly") ||
-		strings.Contains(host, "tinyurl.com") ||
-		strings.Contains(host, "cutt.ly") ||
-		strings.Contains(host, "s.id")
+
+	for _, domain := range redirectHosts {
+		if hostMatches(host, domain) {
+			// tiktok.com and douyin.com are not shorteners themselves; only their /t/ share paths are.
+			if domain == "tiktok.com" || domain == "douyin.com" {
+				continue
+			}
+			return true
+		}
+	}
+
+	return (hostMatches(host, "tiktok.com") && strings.HasPrefix(path, "/t/")) ||
+		(hostMatches(host, "facebook.com") && strings.HasPrefix(path, "/share")) ||
+		(hostMatches(host, "instagram.com") && strings.HasPrefix(path, "/share"))
 }
 
 // ResolveRedirect follows HTTP redirects for shortened or sharing URLs to get the canonical URL.

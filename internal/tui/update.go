@@ -41,8 +41,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.TerminalWidth = msg.Width
-		m.TerminalHeight = msg.Height
 		m.ProgressModel.Width = msg.Width - 20
 		if m.ProgressModel.Width > 64 {
 			m.ProgressModel.Width = 64
@@ -55,6 +53,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var sCmd tea.Cmd
 		m.Spinner, sCmd = m.Spinner.Update(msg)
 		cmds = append(cmds, sCmd)
+
+	case msgDepsStarted:
+		m.ProgressChan = msg.ch
+		return m, waitForChannel(msg.ch)
+
+	case msgDepsProgress:
+		m.DepsItemName = msg.item
+		m.DepsPercent = msg.percent
+		return m, waitForChannel(m.ProgressChan)
 
 	case msgDepsReady:
 		if msg.err != nil {

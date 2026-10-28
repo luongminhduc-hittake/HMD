@@ -190,5 +190,7 @@ func executeGalleryDlDownload(ctx context.Context, opts DownloadOptions) (*Downl
 		return nil, fmt.Errorf("lỗi tải bằng gallery-dl: %w", err)
 	}
 
+	// Partial success (some files landed, some failed) still returns a result;
+	// Result errors out when nothing at all was downloaded.
 	return parser.Result()
 }

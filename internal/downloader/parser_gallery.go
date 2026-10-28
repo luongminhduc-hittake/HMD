@@ -31,6 +31,11 @@ func (p *GalleryParser) FeedLine(line string) {
 		return
 	}
 
+	// gallery-dl prefixes "# " when a file already exists on disk and was not re-downloaded.
+	if strings.HasPrefix(trimmed, "# ") {
+		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
+	}
+
 	// Match paths output by gallery-dl
 	if strings.HasPrefix(trimmed, p.opts.OutputDir) ||
 		strings.HasPrefix(trimmed, "/") ||
@@ -46,8 +51,11 @@ func (p *GalleryParser) FeedLine(line string) {
 // Result constructs the final DownloadResult from gallery-dl state.
 func (p *GalleryParser) Result() (*DownloadResult, error) {
 	count := len(p.downloadedFiles)
-	if count == 0 && p.finalFilePath == "" {
-		count = 1
+	if count == 0 || p.finalFilePath == "" {
+		// gallery-dl exiting 0 without printing a path means nothing was downloaded
+		// (login wall, blocked request, empty gallery). Reporting success here would
+		// show the user a "completed" screen with no file.
+		return nil, fmt.Errorf("gallery-dl không tải được tệp nào (trang bị chặn, cần đăng nhập, hoặc gallery trống)")
 	}
 
 	var fileSize int64

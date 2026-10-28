@@ -32,21 +32,60 @@ func InjectMetadata(ctx context.Context, ffmpegPath, audioPath string, track spo
 		}
 	}
 
-	ext := filepath.Ext(audioPath)
 	tmpAudioPath := filepath.Join(filepath.Dir(audioPath), fmt.Sprintf(".tmp_%d_%s", time.Now().UnixNano(), filepath.Base(audioPath)))
 	defer os.Remove(tmpAudioPath)
 
-	var args []string
-	args = append(args, "-y", "-i", audioPath)
+	args := buildFFmpegMetadataArgs(audioPath, coverPath, track)
+	args = append(args, tmpAudioPath)
 
-	hasCover := coverPath != ""
-	if hasCover {
+	cmd := execCommandContext(ctx, ffmpegPath, args...)
+	prepareCommand(cmd)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ffmpeg metadata injection failed: %w (output: %s)", err, string(output))
+	}
+
+	// Atomic replacement
+	if err := os.Rename(tmpAudioPath, audioPath); err != nil {
+		return fmt.Errorf("failed to replace audio file with tagged version: %w", err)
+	}
+
+	return nil
+}
+
+// containerSupportsCoverArt reports whether the container's muxer accepts an
+// attached_pic video stream. wav and opus/ogg reject video streams entirely.
+func containerSupportsCoverArt(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".mp3", ".m4a", ".mp4", ".m4b", ".flac", ".aac":
+		return true
+	default:
+		return false
+	}
+}
+
+// buildFFmpegMetadataArgs builds the ffmpeg argument list that remuxes audioPath
+// (plus an optional cover image) into a temp file, keeping the audio stream as-is.
+func buildFFmpegMetadataArgs(audioPath, coverPath string, track spotify.TrackInfo) []string {
+	ext := filepath.Ext(audioPath)
+
+	if coverPath != "" && !containerSupportsCoverArt(ext) {
+		coverPath = ""
+	}
+
+	args := []string{"-y", "-i", audioPath}
+
+	if coverPath != "" {
 		args = append(args, "-i", coverPath)
 		args = append(args, "-map", "0:a", "-map", "1:0")
+		// Container rules: only mp3/flac accept a copied mjpeg cover. Everything else
+		// (m4a/mp4/opus/ogg) needs the image re-encoded as mjpeg and flagged attached_pic,
+		// otherwise ffmpeg fails with "codec not currently supported in container".
+		args = append(args, "-c:v", "mjpeg", "-disposition:v", "attached_pic")
 		args = append(args, "-metadata:s:v", "title=Album cover", "-metadata:s:v", "comment=Cover (front)")
 	}
 
-	args = append(args, "-c", "copy")
+	args = append(args, "-c:a", "copy")
 
 	// If mp3, force ID3v2.3 for maximum compatibility
 	if strings.ToLower(ext) == ".mp3" {
@@ -63,21 +102,7 @@ func InjectMetadata(ctx context.Context, ffmpegPath, audioPath string, track spo
 		args = append(args, "-metadata", fmt.Sprintf("album=%s", track.Album))
 	}
 
-	args = append(args, tmpAudioPath)
-
-	cmd := execCommandContext(ctx, ffmpegPath, args...)
-	prepareCommand(cmd)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("ffmpeg metadata injection failed: %w (output: %s)", err, string(output))
-	}
-
-	// Atomic replacement
-	if err := os.Rename(tmpAudioPath, audioPath); err != nil {
-		return fmt.Errorf("failed to replace audio file with tagged version: %w", err)
-	}
-
-	return nil
+	return args
 }
 
 func downloadTempCover(ctx context.Context, coverURL string) (string, error) {

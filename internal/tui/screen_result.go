@@ -250,10 +250,7 @@ func (m Model) viewHistory() string {
 			}
 			dateStr := entry.CreatedAt.Format("15:04 02/01/06")
 			prefix := "  "
-			title := entry.Title
-			if len(title) > 50 {
-				title = title[:47] + "..."
-			}
+			title := util.TruncateTitle(entry.Title, 50)
 			line := fmt.Sprintf("[%d] %s (%s%s - %s)", i+1, title, entry.Format, sizeStr, dateStr)
 			if i == m.HistoryIndex {
 				prefix = "▶ "
